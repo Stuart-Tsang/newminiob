@@ -1,0 +1,5 @@
+if(EXISTS "/home/stuart/Documents/newminiob/miniob/test/case/miniob/build/unitest/path_test[1]_tests.cmake")
+  include("/home/stuart/Documents/newminiob/miniob/test/case/miniob/build/unitest/path_test[1]_tests.cmake")
+else()
+  add_test(path_test_NOT_BUILT path_test_NOT_BUILT)
+endif()

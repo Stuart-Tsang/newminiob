@@ -1,0 +1,24 @@
+Determining if files stdio.h;readline/readline.h exist failed with the following output:
+Change Dir: /home/stuart/Documents/newminiob/miniob/test/case/miniob/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_baf02/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_baf02.dir/build.make CMakeFiles/cmTC_baf02.dir/build
+gmake[1]: Entering directory '/home/stuart/Documents/newminiob/miniob/test/case/miniob/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_baf02.dir/HAVE_READLINE_HEADER.c.o
+/usr/bin/cc   -Wall -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -O2 -g   -o CMakeFiles/cmTC_baf02.dir/HAVE_READLINE_HEADER.c.o -c /home/stuart/Documents/newminiob/miniob/test/case/miniob/build/CMakeFiles/CheckIncludeFiles/HAVE_READLINE_HEADER.c
+/home/stuart/Documents/newminiob/miniob/test/case/miniob/build/CMakeFiles/CheckIncludeFiles/HAVE_READLINE_HEADER.c:3:10: fatal error: readline/readline.h: No such file or directory
+    3 | #include <readline/readline.h>
+      |          ^~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+gmake[1]: *** [CMakeFiles/cmTC_baf02.dir/build.make:78: CMakeFiles/cmTC_baf02.dir/HAVE_READLINE_HEADER.c.o] Error 1
+gmake[1]: Leaving directory '/home/stuart/Documents/newminiob/miniob/test/case/miniob/build/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_baf02/fast] Error 2
+
+
+Source:
+/* */
+#include <stdio.h>
+#include <readline/readline.h>
+
+
+int main(void){return 0;}
+
