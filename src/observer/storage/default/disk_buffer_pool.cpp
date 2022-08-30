@@ -509,6 +509,10 @@ int DiskBufferPool::file_desc() const
 {
   return file_desc_;
 }
+
+std::string DiskBufferPool::get_file_name_(){
+  return file_name_;
+}
 ////////////////////////////////////////////////////////////////////////////////
 BufferPoolManager::BufferPoolManager()
 {

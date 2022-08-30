@@ -222,6 +222,8 @@ public:
    */
   RC flush_all_pages();
 
+   std::string get_file_name_();
+
 protected:
   RC allocate_frame(Frame **buf);
 
@@ -235,6 +237,8 @@ protected:
    * 加载指定页面的数据到内存中
    */
   RC load_page(PageNum page_num, Frame *frame);
+
+ 
 
 private:
   BufferPoolManager &bp_manager_;
