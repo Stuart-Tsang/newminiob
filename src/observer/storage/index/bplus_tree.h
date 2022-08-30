@@ -390,7 +390,8 @@ public:
    */
   RC create(const char *file_name, AttrType attr_type, int attr_length,
 	    int internal_max_size = -1, int leaf_max_size = -1);
-
+  RC drop();
+  
   /**
    * 打开名为fileName的索引文件。
    * 如果方法调用成功，则indexHandle为指向被打开的索引句柄的指针。

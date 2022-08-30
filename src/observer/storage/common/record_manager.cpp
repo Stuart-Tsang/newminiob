@@ -273,6 +273,12 @@ void RecordFileHandler::close()
   }
 }
 
+RC RecordFileHandler::destroy() {
+  RC rc = RC::SUCCESS;
+  close();
+  return rc;
+}
+
 RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
 {
   RC ret = RC::SUCCESS;
