@@ -275,7 +275,10 @@ void RecordFileHandler::close()
 
 RC RecordFileHandler::destroy() {
   RC rc = RC::SUCCESS;
-  close();
+  //close();
+  if (disk_buffer_pool_ != nullptr) {
+    disk_buffer_pool_ = nullptr;
+  }
   return rc;
 }
 

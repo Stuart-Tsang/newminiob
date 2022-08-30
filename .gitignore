@@ -13,9 +13,6 @@ compile_commands.json
 ./vcs.xml
 ./workspace.xml
 ./modules.xml
-./test/case/miniob/*
-./test/case/result_tmp/*
-./test/case/case-scores.json
 GRTAGS
 GPATH
 GTAGS
