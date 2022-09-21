@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 class SQLStageEvent;
 class SessionEvent;
 class SelectStmt;
+class UpdateStmt;
 
 class ExecuteStage : public common::Stage {
 public:
@@ -39,6 +40,7 @@ protected:
   void callback_event(common::StageEvent *event, common::CallbackContext *context) override;
 
   void handle_request(common::StageEvent *event);
+  RC do_update(SQLStageEvent *sql_event);
   RC do_help(SQLStageEvent *session_event);
   RC do_create_table(SQLStageEvent *sql_event);
   RC do_drop_table(SQLStageEvent *sql_event);

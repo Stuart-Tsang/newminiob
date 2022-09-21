@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "rc.h"
 
 class DeleteStmt;
+class UpdateStmt;
 
 class DeleteOperator : public Operator
 {
@@ -39,4 +40,25 @@ public:
   //RC tuple_cell_spec_at(int index, TupleCellSpec &spec) const override
 private:
   DeleteStmt *delete_stmt_ = nullptr;
+};
+
+
+class UpdateOperator : public Operator
+{
+public:
+  UpdateOperator(UpdateStmt *update_stmt)
+    : update_stmt_(update_stmt)
+  {}
+
+  virtual ~UpdateOperator() = default;
+
+  RC open() override;
+  RC next() override;
+  RC close() override;
+
+  Tuple * current_tuple() override {
+    return nullptr;
+  }
+private:
+  UpdateStmt *update_stmt_ = nullptr;
 };

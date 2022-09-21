@@ -632,6 +632,27 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
   return RC::GENERIC_ERROR;
 }
 
+
+RC Table::update_record(Trx *trx, Record *record)
+{
+  RC rc = RC::SUCCESS;
+  if (trx != nullptr) {
+    rc = trx->update_record(this,record);
+  } else {
+    //to do   the timing when we rewrite the record?
+    rc = delete_entry_of_indexes(record->data(), record->rid(), false);
+    rc = insert_entry_of_indexes(record->data(), record->rid());
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to update indexes of record (rid=%d.%d). rc=%d:%s",
+                 record->rid().page_num, record->rid().slot_num, rc, strrc(rc));
+    } else {
+      rc = record_handler_->update_record(record);
+    }
+  }
+  return rc;
+}
+
+
 class RecordDeleter {
 public:
   RecordDeleter(Table &table, Trx *trx) : table_(table), trx_(trx)
@@ -750,6 +771,7 @@ RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error
   }
   return rc;
 }
+
 
 Index *Table::find_index(const char *index_name) const
 {

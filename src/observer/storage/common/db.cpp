@@ -62,7 +62,7 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfo 
   }
 
   // 文件路径可以移到Table模块
-  std::string table_file_path = table_meta_file(path_.c_str(), table_name);
+  std::string table_file_path = table_meta_file(path_.c_str(), table_name); //get the address where the meta file is stored 
   Table *table = new Table();
   rc = table->create(table_file_path.c_str(), table_name, path_.c_str(), attribute_count, attributes);
   if (rc != RC::SUCCESS) {
@@ -85,6 +85,8 @@ RC Db::drop_table(const char *name){
 
   std::string table_file_path = table_meta_file(path_.c_str(),name);
   rc = table->drop(table_file_path.c_str());
+  //delete table; //should do?
+  //table = nullptr;
   opened_tables_.erase(std::string(name));
   return rc;
 } 

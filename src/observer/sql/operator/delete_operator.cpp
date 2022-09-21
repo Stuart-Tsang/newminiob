@@ -17,7 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/record.h"
 #include "storage/common/table.h"
 #include "sql/stmt/delete_stmt.h"
-
+#include "sql/stmt/update_stmt.h"
 RC DeleteOperator::open()
 {
   if (children_.size() != 1) {
@@ -57,6 +57,67 @@ RC DeleteOperator::next()
 }
 
 RC DeleteOperator::close()
+{
+  children_[0]->close();
+  return RC::SUCCESS;
+}
+
+
+
+RC UpdateOperator::open()
+{
+  
+  if (children_.size() != 1) {
+    LOG_WARN("update operator must has 1 child");
+    return RC::INTERNAL;
+  }
+
+  Operator *child = children_[0];
+  RC rc = child->open();
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
+    return rc;
+  }
+
+  Table *table = update_stmt_->table();
+  while (RC::SUCCESS == (rc = child->next())) {
+    Tuple *tuple = child->current_tuple();
+    if (nullptr == tuple) {
+      LOG_WARN("failed to get current record: %s", strrc(rc));
+      return rc;
+    }
+
+    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    Record &record = row_tuple->record();
+
+    //update the relative value in the record we get
+
+    
+    const char *attribute_name = update_stmt_->attribute_name();
+    const TableMeta &table_meta = table->table_meta();
+    const FieldMeta* field_meta = table_meta.field(attribute_name);
+    int attr_offset = field_meta->offset();
+    Value *value = update_stmt_->values();
+    
+    memcpy((record.data() + attr_offset), (const char *)value->data, sizeof(field_meta->len()));
+
+    //write the changed record into slot
+    rc = table->update_record(nullptr, &record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to delete record: %s", strrc(rc));
+      return rc;
+    }
+  }
+  return RC::SUCCESS;
+  
+}
+
+RC UpdateOperator::next()
+{
+  return RC::RECORD_EOF;
+}
+
+RC UpdateOperator::close()
 {
   children_[0]->close();
   return RC::SUCCESS;
