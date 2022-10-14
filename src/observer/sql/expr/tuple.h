@@ -24,7 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/record.h"
 
 class Table;
-
+class ProjectTuple;
 class TupleCellSpec
 {
 public:
@@ -156,23 +156,17 @@ public:
   {
     return *record_;
   }
+
+  const char* table_name() const
+  {
+    return table_->name();
+  }
 private:
   Record *record_ = nullptr;
   const Table *table_ = nullptr;
   std::vector<TupleCellSpec *> speces_;
 };
 
-/*
-class CompositeTuple : public Tuple
-{
-public:
-  int cell_num() const override; 
-  RC  cell_at(int index, TupleCell &cell) const = 0;
-private:
-  int cell_num_ = 0;
-  std::vector<Tuple *> tuples_;
-};
-*/
 
 class ProjectTuple : public Tuple
 {
@@ -225,7 +219,135 @@ public:
     spec = speces_[index];
     return RC::SUCCESS;
   }
+
+  Tuple *get_row_tuple() { return tuple_;}
+
 private:
   std::vector<TupleCellSpec *> speces_;
   Tuple *tuple_ = nullptr;
+};
+
+class TupleSet {
+public:
+  TupleSet() = default;
+  ~TupleSet() {
+    /*
+    for (std::vector<ProjectTuple>::iterator it = tuple_set.begin(); it != tuple_set.end(); ++it) {
+      Tuple *tuple = *it;
+      //delete tuple;
+    }
+    */
+    tuple_set.clear();
+  }
+
+  ProjectTuple get_tuple(int index) {
+    return tuple_set[index];
+  }
+  int size() {
+    return tuple_set.size();
+  }
+  RC add_tuple(ProjectTuple tuple) {
+    tuple_set.push_back(tuple);
+  }
+private:
+  std::vector<ProjectTuple> tuple_set;
+};
+
+
+
+class CompositeTuple : public Tuple
+{
+public:
+  CompositeTuple() = default;
+  virtual ~CompositeTuple()
+  {
+    /*
+    for (Tuple *tuple : tuples_) {
+      delete tuple;
+    }
+    */
+    tuples_.clear();
+  }
+
+  int cell_num() const override
+  {
+    return cell_num_;
+  }
+
+  RC  cell_at(int index, TupleCell &cell) const override
+  {
+    if (index < 0 || index >= speces_.size()) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
+    /*
+    const TupleCellSpec *spec = speces_[index];
+    FieldExpr *field_expr = (FieldExpr *)spec->expression();
+    const FieldMeta *field_meta = field_expr->field().meta();
+
+    cell.set_type(field_meta->type());
+    //find the sub_record the spec belong to 
+    Record *record_ = nullptr;
+    int sum = 0;
+    for (int i = 0; i < tuples_.size(); i++) {
+      sum += (tuples_[i])->cell_num();
+      if (index < sum) {
+        record_ = &(((RowTuple *)(tuples_[i]))->record());
+        break; 
+      }
+      
+     return RC::SUCCESS;
+    }
+   
+    cell.set_data(record_->data() + field_meta->offset());
+    cell.set_length(field_meta->len());
+    */
+    return RC::SUCCESS;
+  }
+
+  RC find_cell(const Field &field, TupleCell &cell) const override
+  {
+    const char *table_name = field.table_name();
+    //to do
+    return RC::SUCCESS;
+  }
+
+  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
+  {
+    /*
+    if (index < 0 || index >= speces_.size()) {
+      return RC::NOTFOUND;
+    }
+    
+    spec = speces_[index];
+    */
+    return RC::SUCCESS;
+  }
+
+  void add(ProjectTuple tuple) {
+    tuples_.push_back(tuple);
+    /*
+    //RowTuple *tuple_ = (RowTuple *)tuple;
+    cell_num_ += tuple_->cell_num();
+    const TupleCellSpec *cell_spec = nullptr;
+    for (int i = 0; i < tuple_->cell_num(); i++) {
+      tuple_->cell_spec_at(i, cell_spec);
+      speces_.push_back((TupleCellSpec*)cell_spec);
+    }
+    */
+  }
+
+  void remove() {
+    tuples_.pop_back();
+  }
+  ProjectTuple get_each_table_tuple(int index) {
+    return tuples_[index];
+  }
+  int table_sizes() {
+    return tuples_.size();
+  }
+private:
+  int cell_num_ = 0;
+  std::vector<TupleCellSpec *> speces_;
+  std::vector<ProjectTuple> tuples_;
 };

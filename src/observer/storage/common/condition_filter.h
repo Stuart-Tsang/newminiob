@@ -38,6 +38,7 @@ public:
    * @return true means match condition, false means failed to match.
    */
   virtual bool filter(const Record &rec) const = 0;
+  virtual bool string_filter(const char* rec) const = 0;
 };
 
 class DefaultConditionFilter : public ConditionFilter {
@@ -47,6 +48,7 @@ public:
 
   RC init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op);
   RC init(Table &table, const Condition &condition);
+  virtual bool string_filter(const char *rec) const;
 
   virtual bool filter(const Record &rec) const;
 
@@ -82,6 +84,7 @@ public:
 
   RC init(const ConditionFilter *filters[], int filter_num);
   RC init(Table &table, const Condition *conditions, int condition_num);
+  virtual bool string_filter(const char *rec) const;
   virtual bool filter(const Record &rec) const;
 
 public:

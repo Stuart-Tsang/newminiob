@@ -40,6 +40,67 @@ void TupleCell::to_string(std::ostream &os) const
   }
 }
 
+void TupleCell::to_string(std::string &row, FieldMeta * field_meta)
+{ 
+  size_t record_size = field_meta->len();
+  //char* record = new char[record_size];
+  switch (attr_type_) {
+  case INTS: {
+    //memcpy(record, *(int *)data_, record_size );
+    row += std::to_string(*(int *)data_);
+  } break;
+  case FLOATS: {
+    row += (std::to_string(*(float *)data_));
+    //memcpy(record, (int *)data_, record_size );
+  } break;
+  case CHARS: {
+    /*
+    for (int i = 0; i < length_; i++) {
+      if (data_[i] == '\0') {
+        break;
+      }
+      os << data_[i];
+    }
+    */
+   row += (std::string(data_));
+   //memcpy(record, (int *)data_, record_size );
+  } break;
+  default: {
+    LOG_WARN("unsupported attr type: %d", attr_type_);
+  } break;
+  }
+  //row += std::string(record);
+  //delete record;
+  //record = nullptr;
+}
+
+void TupleCell::make_row_record(char *record, FieldMeta *field_meta, int trx_len) {
+  size_t copy_len = field_meta->len();
+  size_t offset = field_meta->offset()-trx_len;
+  //char* record = new char[record_size];
+  switch (attr_type_) {
+  case INTS: {
+    memcpy(record + offset, data_, copy_len);
+    //row += std::to_string(*(int *)data_);
+  } break;
+  case FLOATS: {
+    //row += (std::to_string(*(float *)data_));
+    memcpy(record + offset, data_, copy_len);
+  } break;
+  case CHARS: {
+    const size_t data_len = strlen((const char *)data_);
+    if (copy_len > data_len) {  //in case of size overflow?
+      copy_len = data_len + 1;
+    }
+   //row += (std::string(data_));
+   memcpy(record + offset, data_, copy_len);
+  } break;
+  default: {
+    LOG_WARN("unsupported attr type: %d", attr_type_);
+  } break;
+  }
+}
+
 int TupleCell::compare(const TupleCell &other) const
 {
   if (this->attr_type_ == other.attr_type_) {

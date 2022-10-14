@@ -210,4 +210,5 @@ src/observer/CMakeFiles/observer.dir/sql/stmt/stmt.cpp.o: \
  /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./storage/common/table_meta.h \
  /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./storage/common/field_meta.h \
  /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./storage/common/index_meta.h \
- /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/../../deps/common/lang/serializable.h
+ /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/../../deps/common/lang/serializable.h \
+ /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./sql/stmt/update_stmt.h

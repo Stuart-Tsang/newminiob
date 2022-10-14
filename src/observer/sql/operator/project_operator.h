@@ -26,6 +26,7 @@ public:
   virtual ~ProjectOperator() = default;
 
   void add_projection(const Table *table, const FieldMeta *field);
+  bool add_projection(const Table *table, const FieldMeta *field, const Table * current_scan_table);
 
   RC open() override;
   RC next() override;
@@ -39,6 +40,9 @@ public:
   RC tuple_cell_spec_at(int index, const TupleCellSpec *&spec) const;
 
   Tuple * current_tuple() override;
+
+  const ProjectTuple& project_tuple() { return tuple_; } ;
+
 private:
   ProjectTuple tuple_;
 };

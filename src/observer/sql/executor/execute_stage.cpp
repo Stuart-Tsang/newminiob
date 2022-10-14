@@ -240,6 +240,21 @@ void print_tuple_header(std::ostream &os, const ProjectOperator &oper)
     os << '\n';
   }
 }
+
+void make_multiple_tuple_header(std::string& headerlist, std::vector<FieldMeta>& multi_project_tuplecell)
+{
+  int cell_num = multi_project_tuplecell.size();
+
+  for (int i = 0; i < cell_num; i++) {
+    const char* field_name = multi_project_tuplecell[i].name();
+    if (i != 0) {
+      headerlist += " | ";
+    }
+
+      headerlist += std::string(field_name);
+  }
+
+}
 void tuple_to_string(std::ostream &os, const Tuple &tuple)
 {
   TupleCell cell;
@@ -260,6 +275,92 @@ void tuple_to_string(std::ostream &os, const Tuple &tuple)
     cell.to_string(os);
   }
 }
+
+void store_string_tuple(const Tuple &tuple, std::string &row)
+{
+  TupleCell cell;
+  const TupleCellSpec *tuple_cell_spec = nullptr;
+  RC rc = RC::SUCCESS;
+  bool first_field = true;
+  for (int i = 0; i < tuple.cell_num(); i++) {
+    rc = tuple.cell_at(i, cell);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to fetch field of cell. index=%d, rc=%s", i, strrc(rc));
+      break;
+    }
+    if (!first_field) {
+      row += " | ";
+    } else {
+      first_field = false;
+    }
+    //ProjectTuple & project_tuple = (ProjectTuple &)tuple;
+    tuple.cell_spec_at(i,tuple_cell_spec);
+    FieldExpr * field_expr = (FieldExpr *)tuple_cell_spec->expression();
+    const FieldMeta * field_meta= field_expr->field().meta();
+    cell.to_string(row, (FieldMeta *)field_meta);
+  }  
+}
+
+/*
+void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,std::ostream &os) {
+  switch (attr_type_) {
+  case INTS: {
+    os << *(int *)(data + offset);
+  } break;
+  case FLOATS: {
+    os << *(float *)(data + offset);
+  } break;
+  case CHARS: {
+    char * data_ = data + offset;
+    for (int i = 0; i < length_; i++) {
+      if (data_[i] == '\0') {
+        break;
+      }
+      os << data_[i];
+    }
+  } break;
+  default: {
+    LOG_WARN("unsupported attr type: %d", attr_type_);
+  } break;
+  }
+}
+*/
+void store_tuple(const Tuple &tuple, char * record, int trx_len)
+{
+  TupleCell cell;
+  const TupleCellSpec *tuple_cell_spec = nullptr;
+  RC rc = RC::SUCCESS;
+  //bool first_field = true;
+  for (int i = 0; i < tuple.cell_num(); i++) {
+    rc = tuple.cell_at(i, cell);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to fetch field of cell. index=%d, rc=%s", i, strrc(rc));
+      break;
+    }
+    //multi_table_project_cell.push_back(cell);
+    //ProjectTuple & project_tuple = (ProjectTuple &)tuple;
+    tuple.cell_spec_at(i,tuple_cell_spec);
+    FieldExpr * field_expr = (FieldExpr *)tuple_cell_spec->expression();
+    const FieldMeta * field_meta= field_expr->field().meta();
+    /*
+    FieldMeta tmp(*field_meta);
+    int single_offset = tmp.offset();
+    int multi_offset = single_offset + multiple_record_size-trx_len;
+    tmp.set_offset(multi_offset);
+    multi_table_project_cell.push_back(tmp);
+    */
+    cell.make_row_record(record, (FieldMeta *)field_meta, trx_len);
+  }  
+}
+
+void make_full_record(Tuple *tuple, char *record, int record_size, int trx_len) {
+  RowTuple *row_tuple = (RowTuple *)((ProjectTuple *)tuple)->get_row_tuple();
+  Record full_record = row_tuple->record();
+  //Tuple * tmp =((ProjectTuple &)tuple).get_row_tuple();
+  char * data = full_record.data() + trx_len;
+  memcpy(record , data, record_size);
+}
+
 
 IndexScanOperator *try_to_create_index_scan_operator(FilterStmt *filter_stmt)
 {
@@ -390,8 +491,214 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   SessionEvent *session_event = sql_event->session_event();
   RC rc = RC::SUCCESS;
   if (select_stmt->tables().size() != 1) {
-    LOG_WARN("select more than 1 tables is not supported");
-    rc = RC::UNIMPLENMENT;
+    
+    //scan_record(Trx *trx, ConditionFilter *filter,int limit, void *context, void (*record_reader)(const char *data, void *context));
+    
+    //std::vector< std::vector<std::string> > vec;
+    std::vector< std::vector< char * > > vec;
+    std::stringstream ss;
+    std::string tuple_header_list;
+
+    FilterStmt *filter_stmt = select_stmt->filter_stmt();
+    const std::vector<Table *>& table_list = select_stmt->tables();
+    const std::vector<FilterUnit *>& filter_units = filter_stmt->filter_units();
+    int filter_num = 0; //the size of composite conditions
+
+    int condition_num = filter_units.size(); 
+    ConditionFilter **condition_filters = new ConditionFilter *[condition_num];
+    DefaultConditionFilter * default_condition_filter = nullptr;
+    //collect the multiple conditions
+    for (int i=0; i < filter_units.size(); i++) {
+      FilterUnit * filter_unit = filter_units[i];
+      Expression *expr_left = filter_unit->left();
+      Expression *expr_right = filter_unit->right();
+      //select composite table conditions
+      if (expr_left->type()!=ExprType::FIELD || expr_right->type()!=ExprType::FIELD) {
+        continue;
+      }
+
+      //calculate multiple offset
+      int table_index = 0;
+      int multiple_offset_left = 0;
+      int multiple_offset_right = 0;
+      const char* table_of_field_left = ((FieldExpr *)expr_left)->table_name();
+      for (int i=table_list.size()-1; i >= 0; i--) {        
+        if (0 == strcmp(table_of_field_left, table_list[i]->name())){
+          //table_index = i;
+          break;
+        } else {
+          int table_first_field_trx_length = table_list[i]->table_meta().field_metas()->front().offset();
+          int table_last_field_offset = table_list[i]->table_meta().field_metas()->back().offset();
+          int table_last_field_length = table_list[i]->table_meta().field_metas()->back().len();
+          int next_table_start_offset = table_last_field_offset + table_last_field_length - table_first_field_trx_length;
+          multiple_offset_left += next_table_start_offset;
+        }    
+      }
+
+      const char* table_of_field_right = ((FieldExpr *)expr_right)->table_name();
+      for (int i = table_list.size()-1; i >= 0; i--) {        
+        if (0 == strcmp(table_of_field_right, table_list[i]->name())){
+          //table_index = i;
+          break;
+        } else {
+          int table_first_field_trx_length = table_list[i]->table_meta().field_metas()->front().offset();
+          int table_last_field_offset = table_list[i]->table_meta().field_metas()->back().offset();
+          int table_last_field_length = table_list[i]->table_meta().field_metas()->back().len();
+          int next_table_start_offset = table_last_field_offset + table_last_field_length - table_first_field_trx_length;
+          multiple_offset_right += next_table_start_offset;
+        }    
+      }
+      std::cout << table_of_field_left << std::endl;
+      std::cout << table_of_field_right << std::endl;
+
+      ConDesc left;
+      left.is_attr = true;
+      left.attr_length = ((FieldExpr *)expr_left)->field().meta()->len();
+      //left.attr_offset = ((FieldExpr *)expr_left)->field().meta()->offset();
+      left.attr_offset = ((FieldExpr *)expr_left)->field().meta()->offset() + multiple_offset_left;
+
+      ConDesc right;
+      right.is_attr = true;
+      right.attr_length = ((FieldExpr *)expr_right)->field().meta()->len();
+      //right.attr_offset = ((FieldExpr *)expr_right)->field().meta()->offset(); 
+      right.attr_offset = ((FieldExpr *)expr_right)->field().meta()->offset() + multiple_offset_right;
+      //do we need to confirm if expr_left.attr_type is same with expr_right.attr_type? 
+      AttrType attr_type = ((FieldExpr *)expr_left)->field().attr_type();
+      CompOp comp_op = filter_units[i]->comp();
+
+      default_condition_filter = new DefaultConditionFilter();
+      default_condition_filter->init(left, right, attr_type, comp_op);
+      //condition_filter->init();
+
+      condition_filters[filter_num] = default_condition_filter;
+      filter_num += 1;
+      //multiple_condition_index += 1;
+    }
+
+    CompositeConditionFilter composite_condition_filter;
+    composite_condition_filter.init((const ConditionFilter **)condition_filters,filter_num);
+    std::vector<int> multiple_table_record_sizes; 
+    int multiple_record_size = 0;
+    int trx_len = select_stmt->tables()[0]->table_meta().field_metas()->front().offset();;
+    std::vector<FieldMeta> multiple_table_fieldmeta;
+    std::vector<FieldMeta> multiple_table_project_cell;
+    //scan each table  
+    for (int i= select_stmt->tables().size()-1; i >= 0; i--) {
+      //TupleSet tupleset;
+      std::vector<char *> tuple_set_;
+      const Table * current_scan_table = select_stmt->tables()[i];
+
+
+      int record_size = current_scan_table->table_meta().record_size();
+      //multiple_record_size += record_size;
+      const std::vector<FieldMeta>& field_meta = current_scan_table->table_meta().field_meta();
+      for (int i = 0; i < field_meta.size(); i++) {
+        if (strcmp(field_meta[i].name(),"__trx") != 0) {
+          int single_offset = field_meta[i].offset();
+          int multiple_offset = single_offset + multiple_record_size-trx_len;
+          FieldMeta fieldmeta(field_meta[i]);
+          fieldmeta.set_offset(multiple_offset);
+          multiple_table_fieldmeta.push_back(fieldmeta);
+        }
+      }   
+
+      int current_table_trx_length = current_scan_table->table_meta().field_metas()->front().offset();
+      //trx_len = current_table_trx_length;
+      Operator *scan_oper = try_to_create_index_scan_operator(select_stmt->filter_stmt());
+    if (nullptr == scan_oper) {
+      scan_oper = new TableScanOperator(select_stmt->tables()[i]);
+    }
+
+    DEFER([&] () {delete scan_oper;});
+
+    PredicateOperator pred_oper(select_stmt->filter_stmt());
+    pred_oper.add_child(scan_oper);
+    ProjectOperator project_oper;
+    project_oper.add_child(&pred_oper);
+    for (const Field &field : select_stmt->query_fields()) {  //the query fields in `select` statement
+      bool ret = project_oper.add_projection(field.table(), field.meta(),current_scan_table);
+      if (ret) {
+        const ProjectTuple &project_tuple_ = project_oper.project_tuple();
+        const TupleCellSpec *tuple_cell_spec = nullptr;
+        project_tuple_.cell_spec_at(project_tuple_.cell_num()-1,tuple_cell_spec);
+        const FieldMeta * meta = ((FieldExpr *)tuple_cell_spec->expression())->field().meta();
+        int single_offset = meta->offset();
+        int multi_field_offset = single_offset + multiple_record_size- trx_len;
+        FieldMeta tmp(*meta);
+        tmp.set_offset(multi_field_offset);
+        tmp.add_table_name(field.table_name());
+        multiple_table_project_cell.push_back(tmp);
+      }
+    }
+    multiple_record_size += record_size;
+
+    rc = project_oper.open();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to open operator");
+      return rc;
+    }
+
+
+    //print_tuple_header(ss, project_oper);
+    while ((rc = project_oper.next()) == RC::SUCCESS) {
+      // get current record
+      // write to response
+      Tuple * tuple = project_oper.current_tuple();
+      if (nullptr == tuple) {
+        rc = RC::INTERNAL;
+        LOG_WARN("failed to get current record. rc=%s", strrc(rc));
+        break;
+      }
+
+      //tupleset.add_tuple(*(ProjectTuple *)tuple);
+      //int record_size = current_scan_table->table_meta().record_size();
+      char* record = new char[record_size];
+      multiple_table_record_sizes.push_back(record_size);
+      //std::string row;  //make each tupleset(table) ,prepare for descartes
+      //store_string_tuple(*tuple, row);
+      //tuple_to_string(ss, *tuple);
+      //store_tuple(*tuple, record, current_table_trx_length);
+      make_full_record(tuple, record, record_size, trx_len);
+      tuple_set_.push_back(record);
+      
+      //ss << std::endl;
+    }
+
+    //multi_tuple_set.push_back(std::move(tupleset));
+
+    if (rc != RC::RECORD_EOF) {
+      LOG_WARN("something wrong while iterate operator. rc=%s", strrc(rc));
+      project_oper.close();
+    } else {
+      rc = project_oper.close();
+    }
+
+    vec.push_back(tuple_set_);
+
+   }
+    make_multiple_tuple_header(tuple_header_list, multiple_table_project_cell);
+    ss << tuple_header_list << std::endl;
+    std::vector<std::string> descartes;
+    getDescartes(vec, composite_condition_filter, multiple_table_record_sizes, ss, multiple_table_project_cell);
+    
+    /*
+    for (int i=0; i< descartes.size(); i++) {
+      bool first = true;
+      for (int j=0; j< multiple_table_fieldmeta.size(); j++) {
+        if (!first) {
+          ss << " | ";
+        }else {
+          first = false;
+        }
+        FieldMeta tmp = multiple_table_fieldmeta[i];
+        multi_to_string((char *)descartes[i].c_str(),tmp.offset(),tmp.len(), tmp.type(), ss);
+      }
+      //descartes[i].c_str();
+      ss << std::endl;
+    }
+    */
+   
+    session_event->set_response(ss.str());
     return rc;
   }
 
@@ -610,3 +917,5 @@ RC ExecuteStage::do_update(SQLStageEvent *sql_event){
   }
   return rc;     
 }
+
+    

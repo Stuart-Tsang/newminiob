@@ -36,6 +36,8 @@ public:
   void set_data(const char *data) { this->set_data(const_cast<char *>(data)); }
 
   void to_string(std::ostream &os) const;
+  void to_string(std::string &row, FieldMeta * field_meta);
+  void make_row_record(char *record, FieldMeta *field_meta, int trx_len) ;
 
   int compare(const TupleCell &other) const;
 

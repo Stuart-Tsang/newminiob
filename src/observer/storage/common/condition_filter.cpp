@@ -184,6 +184,71 @@ bool DefaultConditionFilter::filter(const Record &rec) const
   return cmp_result;  // should not go here
 }
 
+
+bool DefaultConditionFilter::string_filter(const char *rec) const {
+  //const char *record = rec.c_str();
+  
+  char *left_value = nullptr;
+  char *right_value = nullptr;
+
+  if (left_.is_attr) {  // value
+    left_value = (char *)(rec + left_.attr_offset);
+  } else {
+    left_value = (char *)left_.value;
+  }
+
+  if (right_.is_attr) {
+    right_value = (char *)(rec + right_.attr_offset);
+  } else {
+    right_value = (char *)right_.value;
+  }
+
+  int cmp_result = 0;
+  switch (attr_type_) {
+    case CHARS: {  // 字符串都是定长的，直接比较
+      // 按照C字符串风格来定
+      cmp_result = strcmp(left_value, right_value);
+    } break;
+    case INTS: {
+      // 没有考虑大小端问题
+      // 对int和float，要考虑字节对齐问题,有些平台下直接转换可能会跪
+      int left = *(int *)left_value;
+      int right = *(int *)right_value;
+      cmp_result = left - right;
+    } break;
+    case FLOATS: {
+      float left = *(float *)left_value;
+      float right = *(float *)right_value;
+      cmp_result = (int)(left - right);
+    } break;
+    default: {
+    }
+  }
+
+  switch (comp_op_) {
+    case EQUAL_TO:
+      return 0 == cmp_result;
+    case LESS_EQUAL:
+      return cmp_result <= 0;
+    case NOT_EQUAL:
+      return cmp_result != 0;
+    case LESS_THAN:
+      return cmp_result < 0;
+    case GREAT_EQUAL:
+      return cmp_result >= 0;
+    case GREAT_THAN:
+      return cmp_result > 0;
+
+    default:
+      break;
+  }
+
+  LOG_PANIC("Never should print this.");
+  return cmp_result;  // should not go here  
+}
+
+
+
 CompositeConditionFilter::~CompositeConditionFilter()
 {
   if (memory_owner_) {
@@ -241,4 +306,13 @@ bool CompositeConditionFilter::filter(const Record &rec) const
     }
   }
   return true;
+}
+
+bool CompositeConditionFilter::string_filter(const char *rec) const {
+  for (int i = 0; i < filter_num_; i++) {
+    if (!filters_[i]->string_filter(rec)) {
+      return false;
+    }
+  }
+  return true;  
 }

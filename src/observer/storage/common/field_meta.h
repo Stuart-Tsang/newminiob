@@ -39,6 +39,14 @@ public:
   int len() const;
   bool visible() const;
 
+  void set_offset(int offset) { attr_offset_ = offset; }
+  void add_table_name(const char *table_name) {
+    size_t size = name_.size();
+    char tmp[size];
+    name_.copy(tmp, size, 0);
+    std::string str = std::string(table_name) + "." + name_;
+    name_.swap(str);
+  }
 public:
   void desc(std::ostream &os) const;
 

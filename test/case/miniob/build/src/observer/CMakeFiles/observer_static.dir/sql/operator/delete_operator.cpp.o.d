@@ -218,4 +218,5 @@ src/observer/CMakeFiles/observer_static.dir/sql/operator/delete_operator.cpp.o: 
  /usr/include/c++/11/bits/sstream.tcc \
  /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./defs.h \
  /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./sql/stmt/delete_stmt.h \
- /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./sql/stmt/stmt.h
+ /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./sql/stmt/stmt.h \
+ /home/stuart/Documents/newminiob/miniob/test/case/miniob/miniob/src/observer/./sql/stmt/update_stmt.h

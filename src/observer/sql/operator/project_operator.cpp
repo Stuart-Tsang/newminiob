@@ -59,6 +59,18 @@ void ProjectOperator::add_projection(const Table *table, const FieldMeta *field_
   tuple_.add_cell_spec(spec);
 }
 
+bool ProjectOperator::add_projection(const Table *table, const FieldMeta *field_meta, const Table * current_scan_table)
+{
+  if (0 == strcmp(table->name(),current_scan_table->name())) {
+    TupleCellSpec *spec = new TupleCellSpec(new FieldExpr(table, field_meta));
+    spec->set_alias(field_meta->name());
+    tuple_.add_cell_spec(spec);
+    return true;
+  } else{
+    return false;
+  }
+}
+
 RC ProjectOperator::tuple_cell_spec_at(int index, const TupleCellSpec *&spec) const
 {
   return tuple_.cell_spec_at(index, spec);
