@@ -12,6 +12,15 @@ inline bool is_leap_year(int year)
     return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
 }
 
+inline bool is_date_form(const char *str)
+{
+    int n1, n2, n3, res=0;
+    res = sscanf(str, "%d-%d-%d", &n1, &n2, &n3);
+    if(res == 3)
+        return true;
+    return false;
+}
+
 inline RC string_to_date(const char *str, int32_t &date)
 {
     //"2022-09-01"

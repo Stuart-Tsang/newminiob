@@ -116,7 +116,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     }
     right = new FieldExpr(table, field);
   } else {
-    if(condition.right_value.type == CHARS) {
+    if(condition.right_value.type == CHARS && is_date_form((const char*)condition.right_value.data)) {
       int32_t date = -1;
       //-------------------------------------------------------------------
       RC rc = string_to_date((const char*)condition.right_value.data, date);
