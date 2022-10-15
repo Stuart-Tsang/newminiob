@@ -24,6 +24,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/record_manager.h"
 #include "storage/default/disk_buffer_pool.h"
 #include "sql/parser/parse_defs.h"
+#include "util/comparator.h"
+
 
 #define EMPTY_RID_PAGE_NUM -1
 #define EMPTY_RID_SLOT_NUM -1
@@ -45,6 +47,10 @@ public:
     switch (attr_type_) {
     case INTS: {
       return *(int *)v1 - *(int *)v2;
+    }
+      break;
+    case DATES: {
+      return compare_int((void *)v1, (void *)v2);
     }
       break;
     case FLOATS: {
