@@ -30,7 +30,6 @@ except:
 启动observer ->
 执行测试用例 ->
 对比执行结果与预先设置的结果文件
-
 - 获取源码的方式：支持通过git获取，也可以指定源码的zip压缩包路径
 - 编译源码：可以指定编译的cmake和make参数。也可以跳过这个步骤。
 - 测试用例文件：测试用例文件都以.test结尾，当前放在test目录下，分为necessary和option(后续可以考虑删除)
@@ -39,11 +38,9 @@ except:
 - 执行测试用例：测试用例文件中，每行都是一个命令。命令可以是SQL语句，也可以是预先定义的命令，比如 echo，sort等
 - 评分文件：当前为 case-scores.json 文件，内容为json格式，描述每个case的分值
 - 测试：使用参数直接连接已经启动的observer
-
 TODO list
 - 控制所有用例一共执行的时长
 - 简化部分配置项，已知：增加测试base-dir目录，在base-dir下查找test/result/case-scores.json文件
-
 How to use:
  使用git下载代码然后测试
 python3 miniob_test.py \
@@ -1390,4 +1387,3 @@ if __name__ == '__main__':
   else:
     logging.info(evaluation)
   exit(exit_code)
-

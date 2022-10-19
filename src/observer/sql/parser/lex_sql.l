@@ -8,6 +8,7 @@ struct ParserContext;
 extern int atoi();
 extern double atof();
 
+#define YYDEBUG 1 
 #if YYDEBUG > 0
 #define debug_printf  printf
 #else
@@ -72,6 +73,11 @@ QUOTE            [\'\"]
 [Ll][Oo][Aa][Dd]			                   RETURN_TOKEN(LOAD);
 [Dd][Aa][Tt][Aa]	                       RETURN_TOKEN(DATA);
 [Ii][Nn][Ff][Ii][Ll][Ee]                 RETURN_TOKEN(INFILE);
+
+[Mm][Aa][Xx]							 			RETURN_TOKEN(AGGR_MAX);
+[Mm][Ii][Nn]							 			RETURN_TOKEN(AGGR_MIN);
+[Aa][Vv][Gg]							 			RETURN_TOKEN(AGGR_AVG);
+[Cc][Oo][Uu][Nn][Tt]					 			RETURN_TOKEN(AGGR_COUNT);
 {ID}							                       yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("								                       RETURN_TOKEN(LBRACE);
 ")"								                       RETURN_TOKEN(RBRACE);

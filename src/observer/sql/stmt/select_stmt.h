@@ -41,9 +41,13 @@ public:
   const std::vector<Field> &query_fields() const { return query_fields_; }
   FilterStmt *filter_stmt() const { return filter_stmt_; }
   //int query_fields_size() const { return query_fields_.size();}
+  const std::vector<int> &is_aggregation() const { return is_aggregation_; }
+  const std::vector<AggrType> &aggr_types() const { return aggr_types_; }
 private:
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
+  std::vector<int> is_aggregation_;
+  std::vector<AggrType> aggr_types_;
 };
 

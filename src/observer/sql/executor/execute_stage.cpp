@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include <sstream>
+#include <numeric>
+#include <algorithm>
 
 #include "execute_stage.h"
 
@@ -579,7 +581,7 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
     composite_condition_filter.init((const ConditionFilter **)condition_filters,filter_num);
     std::vector<int> multiple_table_record_sizes; 
     int multiple_record_size = 0;
-    int trx_len = select_stmt->tables()[0]->table_meta().field_metas()->front().offset();;
+    int trx_len = select_stmt->tables()[0]->table_meta().field_metas()->front().offset();
     std::vector<FieldMeta> multiple_table_fieldmeta;
     std::vector<FieldMeta> multiple_table_project_cell;
     //scan each table  
@@ -701,6 +703,285 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
     session_event->set_response(ss.str());
     return rc;
   }
+    //1 if it is an aggregation
+    if (select_stmt->is_aggregation()[0] == 1) {
+      std::vector<char *> tuple_set_;
+      //scan the table and store the data into a vector tuple_set_
+      Operator *scan_oper = try_to_create_index_scan_operator(select_stmt->filter_stmt()); 
+    if (nullptr == scan_oper) {
+      scan_oper = new TableScanOperator(select_stmt->tables()[0]);
+    }
+
+    DEFER([&] () {delete scan_oper;});
+
+    const Table *current_scan_table = select_stmt->tables()[0];
+    std::stringstream ss;
+    PredicateOperator pred_oper(select_stmt->filter_stmt());
+    pred_oper.add_child(scan_oper);
+    ProjectOperator project_oper;
+    project_oper.add_child(&pred_oper);
+    for (const Field &field : select_stmt->query_fields()) {  //the query fields in `select` statement
+      project_oper.add_projection(field.table(), field.meta());
+    }
+    rc = project_oper.open();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to open operator");
+      return rc;
+    }
+
+    //print_tuple_header(ss, project_oper);
+    while ((rc = project_oper.next()) == RC::SUCCESS) {
+      // get current record
+      // write to response
+      Tuple * tuple = project_oper.current_tuple();
+      if (nullptr == tuple) {
+        rc = RC::INTERNAL;
+        LOG_WARN("failed to get current record. rc=%s", strrc(rc));
+        break;
+      }
+
+      int record_size = current_scan_table->table_meta().record_size();
+      char *record = new char[record_size];
+      int trx_len = 4;
+      make_full_record(tuple, record, record_size, trx_len);
+      tuple_set_.push_back(record);
+    }
+
+    if (rc != RC::RECORD_EOF) {
+      LOG_WARN("something wrong while iterate operator. rc=%s", strrc(rc));
+      project_oper.close();
+    } else {
+      rc = project_oper.close();
+    }
+
+    //count the aggr num
+    size_t aggr_num = select_stmt->aggr_types().size();
+    bool first_header = true;
+    //print header
+    for (int i = 0; i < aggr_num; i++) {
+      if (first_header) {
+        first_header = false;
+      } else {
+        ss << " | ";
+      }
+      //need aggr type and field name to print header 
+      size_t query_num = select_stmt->query_fields().size();
+      const Field &field = select_stmt->query_fields()[i];
+      AggrType  aggr_type_ = select_stmt->aggr_types()[i];
+      char *field_name = nullptr;
+      if (aggr_type_ == AggrType::AGGREGATION_COUNT && query_num > 1) {
+        field_name = "*";
+      } else {
+        field_name = (char *)field.field_name();
+      }
+      
+      
+      //char * aggr_name = nullptr;
+      std::string field_name_('(' + std::string(field_name) + ')');
+      std::string aggr_header;
+      switch (aggr_type_)
+      {
+      case AggrType::AGGREGATION_MAX:{
+        aggr_header = "MAX" ;
+      }break;
+
+      case AggrType::AGGREGATION_MIN:{
+        aggr_header = "MIN" ;
+      }break;
+
+      case AggrType::AGGREGATION_AVG:{
+        aggr_header = "AVG" ;
+      }break;
+
+      case AggrType::AGGREGATION_COUNT:{
+        aggr_header = "COUNT" ;
+      }break;
+
+      default: {
+        LOG_WARN("AggrType %d not support!",aggr_type_);
+      }break;
+      }
+
+      std::string result = aggr_header + field_name_;
+      ss << result;
+
+    }
+    ss << std::endl;
+
+    bool first_recycle = true;
+    for(int i = 0; i < aggr_num; i++) {
+      // read the relative field into a vector
+      const Field &field = select_stmt->query_fields()[i];
+      AggrType first = select_stmt->aggr_types()[i];
+      //select_stmt->tables()[0]->table_meta().field_metas()->front().offset();
+      size_t trx_length = 4;
+      size_t offset = field.meta()->offset() - trx_length;
+      size_t length = field.meta()->len();
+      AttrType attr_type = field.meta()->type();
+      if (first_recycle) {
+        first_recycle = false;
+      } else {
+        ss << " | ";
+      }
+
+      switch (first)
+      {
+      case AGGREGATION_MAX: {
+        if(attr_type == AttrType::INTS){
+          std::vector<int> array_;
+          for (int j = 0; j < tuple_set_.size(); j++) {
+            char *tmp = tuple_set_[j];
+            array_.push_back(*(int *)(tmp+offset));
+        }
+        auto max_ = std::max_element(array_.begin(), array_.end());
+        ss << *max_;
+        } else if(attr_type==AttrType::FLOATS) {
+          std::vector<float> array_;
+          for (int j = 0; j < tuple_set_.size(); j++) {
+            char *tmp = tuple_set_[j];
+            array_.push_back(*(float *)(tmp+offset));
+          }
+        auto max_ = std::max_element(array_.begin(), array_.end());
+        ss << *max_;
+        } else if(attr_type == AttrType::CHARS){
+          //std::sort
+          //char *s = nullptr; 
+          std::vector<std::string> array_;
+          for (int j = 0; j< tuple_set_.size(); j++ ){
+            char *tmp = tuple_set_[j]+ offset;
+            char *s = new char[length]; 
+            for (int k = 0; k < length; k++) {
+              if (tmp[k] == '\0') {
+                break;
+              }
+              //s.push_back(tmp[k]);
+              s[k] = tmp[k];
+            }
+            std::cout << s << std::endl;
+            std::string str(s);
+            std::cout << str << std::endl;
+            array_.push_back(s);
+            //delete s;
+            //s = nullptr;
+          }
+          std::sort(array_.begin(), array_.end());
+          int array_len = array_.size();
+          ss << array_.back();  //max
+          /*
+          // free allocated space
+          for (int i = 0; i < array_.size(); i++) {
+            delete array_[i];
+            array_[i] = nullptr;
+          }
+          */
+
+        } else {
+          LOG_WARN("ATTrType: %d not support!",attr_type);
+          rc = RC::GENERIC_ERROR;
+        }
+
+      }break;
+      case AGGREGATION_MIN: {
+        if(attr_type == AttrType::INTS){
+          std::vector<int> array_;
+          for (int j = 0; j < tuple_set_.size(); j++) {
+            char *tmp = tuple_set_[j];
+            array_.push_back(*(int *)(tmp+offset));
+        }
+        auto min_ = std::min_element(array_.begin(), array_.end());
+        ss << *min_;
+        } else if(attr_type==AttrType::FLOATS) {
+          std::vector<float> array_;
+          for (int j = 0; j < tuple_set_.size(); j++) {
+            char *tmp = tuple_set_[j];
+            array_.push_back(*(float *)(tmp+offset));
+          }
+        auto min_ = std::min_element(array_.begin(), array_.end());
+        ss << *min_;
+
+        } else if(attr_type == AttrType::CHARS){
+          //std::sort
+          
+          std::vector<std::string> array_;
+          for (int j = 0; j< tuple_set_.size(); j++ ){
+            char *tmp = tuple_set_[j]+ offset;
+            char *s = new char[length]; 
+            for (int k = 0; k < length; k++) {
+              if (tmp[k] == '\0') {
+                break;
+              }
+              //s.push_back(tmp[k]);
+              s[k] = tmp[k];
+            }
+            std::cout << s << std::endl;
+            std::string str(s);
+            std::cout << str << std::endl;
+            array_.push_back(s);
+            //delete s;
+            //s = nullptr;
+          }
+          std::sort(array_.begin(), array_.end());
+          ss << array_[0];
+
+        /*
+        // free allocated space
+        for (int i = 0; i < array_.size(); i++) {
+          delete array_[i];
+          array_[i] = nullptr;
+        }
+        */
+
+        } else {
+          LOG_WARN("ATTrType: %d not support!",attr_type);
+          rc = RC::GENERIC_ERROR;
+        }
+        
+      }break;
+      case AGGREGATION_AVG: {
+        
+        if(attr_type == AttrType::INTS) {
+          //tranform to floats
+          std::vector<int> array_;
+     
+          for (int j = 0; j < tuple_set_.size(); j++) {
+            char *tmp = tuple_set_[j];
+            array_.push_back(*(int *)(tmp+offset));
+          }
+    
+          float average = accumulate( array_.begin(), array_.end(), 0.0)/array_.size();
+          ss << average;
+        } else if(attr_type == AttrType::FLOATS) {
+          std::vector<float> array_;
+          for (int j = 0; j < tuple_set_.size(); j++) {
+            char *tmp = tuple_set_[j];
+            array_.push_back(*(float *)(tmp+offset));
+          }
+        
+          float average = accumulate( array_.begin(), array_.end(), 0.0)/array_.size();
+          ss << average;
+        } else {
+          LOG_WARN("AttrType: %d not support!",attr_type);
+          rc = RC::GENERIC_ERROR;
+        }
+
+      }break;
+      case AGGREGATION_COUNT: {
+        //vector size is the result
+        int count_size = tuple_set_.size();
+        ss << count_size;
+        std::cout << " ss is : " << ss.str()<< std::endl; 
+      }break;
+    
+      default: {
+        LOG_WARN("unsupported attr type: %d", AggrType::AGGREGATION_UNDEFINED);
+      }break;
+      }
+    }
+
+    ss << std::endl;
+    session_event->set_response(ss.str());
+    return rc;
+  } 
 
   Operator *scan_oper = try_to_create_index_scan_operator(select_stmt->filter_stmt());
   if (nullptr == scan_oper) {

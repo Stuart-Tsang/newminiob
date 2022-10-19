@@ -24,10 +24,21 @@ See the Mulan PSL v2 for more details. */
 #define MAX_ERROR_MESSAGE 20
 #define MAX_DATA 50
 
+//aggregation type struct
+typedef enum {
+  AGGREGATION_MAX,
+  AGGREGATION_MIN,
+  AGGREGATION_AVG,
+  AGGREGATION_COUNT,
+  AGGREGATION_UNDEFINED
+} AggrType;
+
 //属性结构体
 typedef struct {
   char *relation_name;   // relation name (may be NULL) 表名
   char *attribute_name;  // attribute name              属性名
+  int is_aggregation;    // 1 if attr is an aggregation
+  AggrType aggr_type;    // aggregation type :max, min ,count and etc.
 } RelAttr;
 
 typedef enum {
@@ -187,6 +198,9 @@ extern "C" {
 
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
 void relation_attr_destroy(RelAttr *relation_attr);
+
+void relation_attr_aggregation_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name, AggrType aggr_type);
+void relation_attr_aggregation_destroy(RelAttr *relation_attr);
 
 void value_init_integer(Value *value, int v);
 void value_init_float(Value *value, float v);

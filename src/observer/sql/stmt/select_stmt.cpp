@@ -65,17 +65,23 @@ RC SelectStmt::create(Db *db, const Selects &select_sql, Stmt *&stmt)
   
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
+  std::vector<AggrType> aggr_types;
+  std::vector<int> is_aggregation;
   for (int i = select_sql.attr_num - 1; i >= 0; i--) {
     const RelAttr &relation_attr = select_sql.attributes[i];
+
+    is_aggregation.push_back(relation_attr.is_aggregation);
+    aggr_types.push_back(relation_attr.aggr_type);
 
     if (common::is_blank(relation_attr.relation_name) && 0 == strcmp(relation_attr.attribute_name, "*")) {
       for (Table *table : tables) {
         wildcard_fields(table, query_fields);
       }
-
+      
     } else if (!common::is_blank(relation_attr.relation_name)) { // TODO
       const char *table_name = relation_attr.relation_name;
       const char *field_name = relation_attr.attribute_name;
+
 
       if (0 == strcmp(table_name, "*")) {
         if (0 != strcmp(field_name, "*")) {
@@ -138,11 +144,16 @@ RC SelectStmt::create(Db *db, const Selects &select_sql, Stmt *&stmt)
     return rc;
   }
 
+  //check if it is an aggregation query
+  //int is_arregation = select_sql.
+
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->aggr_types_.swap(aggr_types);
+  select_stmt->is_aggregation_.swap(is_aggregation);
   stmt = select_stmt;
   return RC::SUCCESS;
 }
