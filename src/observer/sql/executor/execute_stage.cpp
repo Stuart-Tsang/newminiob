@@ -832,24 +832,26 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
           for (int j = 0; j < tuple_set_.size(); j++) {
             char *tmp = tuple_set_[j];
             array_.push_back(*(int *)(tmp+offset));
-        }
-        auto max_ = std::max_element(array_.begin(), array_.end());
-        ss << *max_;
+          }
+          auto max_ = std::max_element(array_.begin(), array_.end());
+          ss << *max_;
         } else if(attr_type==AttrType::FLOATS) {
           std::vector<float> array_;
           for (int j = 0; j < tuple_set_.size(); j++) {
             char *tmp = tuple_set_[j];
             array_.push_back(*(float *)(tmp+offset));
           }
-        auto max_ = std::max_element(array_.begin(), array_.end());
-        ss << *max_;
+          auto max_ = std::max_element(array_.begin(), array_.end());
+          ss << *max_;
         } else if(attr_type == AttrType::CHARS){
           //std::sort
           //char *s = nullptr; 
-          std::vector<std::string> array_;
+          std::vector<char *> array_;
           for (int j = 0; j< tuple_set_.size(); j++ ){
             char *tmp = tuple_set_[j]+ offset;
             char *s = new char[length]; 
+            memcpy(s, tmp , length);
+            /*
             for (int k = 0; k < length; k++) {
               if (tmp[k] == '\0') {
                 break;
@@ -857,9 +859,10 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
               //s.push_back(tmp[k]);
               s[k] = tmp[k];
             }
+            */
             std::cout << s << std::endl;
-            std::string str(s);
-            std::cout << str << std::endl;
+            //std::string str(s);
+            //std::cout << str << std::endl;
             array_.push_back(s);
             //delete s;
             //s = nullptr;
@@ -902,10 +905,12 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
         } else if(attr_type == AttrType::CHARS){
           //std::sort
           
-          std::vector<std::string> array_;
+          std::vector<char *> array_;
           for (int j = 0; j< tuple_set_.size(); j++ ){
             char *tmp = tuple_set_[j]+ offset;
-            char *s = new char[length]; 
+            char *s = new char[length];
+            memcpy(s, tmp, length);
+            /*
             for (int k = 0; k < length; k++) {
               if (tmp[k] == '\0') {
                 break;
@@ -913,9 +918,10 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
               //s.push_back(tmp[k]);
               s[k] = tmp[k];
             }
+            */
             std::cout << s << std::endl;
-            std::string str(s);
-            std::cout << str << std::endl;
+            //std::string str(s);
+            //std::cout << str << std::endl;
             array_.push_back(s);
             //delete s;
             //s = nullptr;
