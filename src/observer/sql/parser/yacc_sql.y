@@ -107,6 +107,8 @@ ParserContext *get_context(yyscan_t scanner)
 		AGGR_MIN
 		AGGR_AVG
 		AGGR_COUNT
+		INNER
+		JOIN
 
 %union {
   struct _Attr *attr;
@@ -341,7 +343,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where SEMICOLON
+    SELECT select_attr FROM ID inner_join_list rel_list where SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
@@ -402,6 +404,20 @@ select_attr:
 		}
 	
     ;
+
+inner_join_list:
+	/*empty*/
+	| INNER JOIN ID on inner_join_list {
+		selects_append_relation(&CONTEXT->ssql->sstr.selection, $3);
+	  }
+
+on:
+	 /* empty */
+    | ON condition condition_list {
+	// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
+      }
+    ;
+
 attr_list:
     /* empty */
     | COMMA ID attr_list {

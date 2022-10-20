@@ -74,6 +74,9 @@ QUOTE            [\'\"]
 [Dd][Aa][Tt][Aa]	                       RETURN_TOKEN(DATA);
 [Ii][Nn][Ff][Ii][Ll][Ee]                 RETURN_TOKEN(INFILE);
 
+[Ii][Nn][Nn][Ee][Rr]                                RETURN_TOKEN(INNER);
+[Jj][Oo][Ii][Nn]                                    RETURN_TOKEN(JOIN);
+
 [Mm][Aa][Xx]							 			RETURN_TOKEN(AGGR_MAX);
 [Mm][Ii][Nn]							 			RETURN_TOKEN(AGGR_MIN);
 [Aa][Vv][Gg]							 			RETURN_TOKEN(AGGR_AVG);
