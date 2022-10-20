@@ -681,24 +681,14 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
     make_multiple_tuple_header(tuple_header_list, multiple_table_project_cell);
     ss << tuple_header_list << std::endl;
     std::vector<std::string> descartes;
+    for (int i = 0; i < vec.size(); i++) {
+      if (vec[i].size() == 0) {
+        session_event->set_response(ss.str());
+        return rc;
+      }
+    }
     getDescartes(vec, composite_condition_filter, multiple_table_record_sizes, ss, multiple_table_project_cell);
     
-    /*
-    for (int i=0; i< descartes.size(); i++) {
-      bool first = true;
-      for (int j=0; j< multiple_table_fieldmeta.size(); j++) {
-        if (!first) {
-          ss << " | ";
-        }else {
-          first = false;
-        }
-        FieldMeta tmp = multiple_table_fieldmeta[i];
-        multi_to_string((char *)descartes[i].c_str(),tmp.offset(),tmp.len(), tmp.type(), ss);
-      }
-      //descartes[i].c_str();
-      ss << std::endl;
-    }
-    */
    
     session_event->set_response(ss.str());
     return rc;
