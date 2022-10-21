@@ -138,9 +138,11 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
   switch (attr_type_) {
   case INTS: {
     os << *(int *)(data + offset);
+    std::cout << *(int *)(data + offset);
   } break;
   case FLOATS: {
     os << *(float *)(data + offset);
+    std::cout << *(float *)(data + offset);
   } break;
   case CHARS: {
     char * data_ = data + offset;
@@ -149,7 +151,9 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
         break;
       }
       os << data_[i];
+      std::cout << data_[i];
     }
+    std::cout << '\0';
   } break;
   default: {
     LOG_WARN("unsupported attr type: %d", attr_type_);
@@ -158,16 +162,18 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
 }
 
 void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int position, 
-    char * line, CompositeConditionFilter &composite_condition_filter, std::vector<int> multiple_table_record_sizes, 
+    char * line, CompositeConditionFilter &composite_condition_filter, std::vector<int>& multiple_table_record_sizes, 
       std::ostream& os, std::vector<FieldMeta>& multi_field_table) {
   // traverse the number `position` table
   std::vector< char* > &table = originalList[position];
   size_t table_record_size = multiple_table_record_sizes[position];
   size_t table_offset = 0;
+  size_t upper_offset = 0;  // start of next record
   for (int i=0; i< position;i++) {
     table_offset += multiple_table_record_sizes[i];
   }
-  std::string prefix("");
+  upper_offset = table_offset + multiple_table_record_sizes[position];
+  //std::string prefix("");
   /*
   if (position != 0) {
     prefix += " | ";
@@ -180,9 +186,10 @@ void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int pos
     //line += tuple_tail;
     //size_t start_position_to_erase = line.find(tuple_tail);
     //tuple becomes complete
+    /*
     if (position == originalList.size()-1) {
       bool first = true;
-      if (composite_condition_filter.string_filter(line)) {
+      if (composite_condition_filter.string_filter(line, upper_offset)) {
         for (int j=0; j< multi_field_table.size(); j++) {
           if (!first) {
             os << " | ";
@@ -199,14 +206,38 @@ void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int pos
       memset(line+ table_offset, 0, table_record_size);
       continue;
     }
+    */
 
-    DescartestRecursive(originalList, position+1, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
-    memset(line+ table_offset, 0, table_record_size);;
+    if (composite_condition_filter.string_filter(line, upper_offset)) {
+      if (position == originalList.size()-1) {
+        bool first = true;
+        for (int j=0; j < multi_field_table.size(); j++) {
+          if (!first) {
+            os << " | ";
+            std::cout << " | ";
+          }else {
+            first = false;
+          }
+          FieldMeta tmp = multi_field_table[j];
+          multi_to_string(line,tmp.offset(),tmp.len(), tmp.type(), os);
+        }
+        os << std::endl;
+        std::cout << std::endl;
+      } else {
+        DescartestRecursive(originalList, position+1, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
+      }
+
+    } 
+    memset(line+ table_offset, 0, table_record_size);
+    
+
+    //DescartestRecursive(originalList, position+1, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
+    //memset(line+ table_offset, 0, table_record_size);;
   }
 }
 
 //TupleSet getDescartes(std::vector<TupleSet>& list);
- void getDescartes(std::vector< std::vector<char *> >& originalList, CompositeConditionFilter &composite_condition_filter, std::vector<int> multiple_table_record_sizes, std::ostream& os, std::vector<FieldMeta>& multi_field_table ) {
+ void getDescartes(std::vector< std::vector<char *> >& originalList, CompositeConditionFilter &composite_condition_filter, std::vector<int>& multiple_table_record_sizes, std::ostream& os, std::vector<FieldMeta>& multi_field_table ) {
   //TupleSet returnList;
   int record_size = 0;
   for (int i=0; i < multiple_table_record_sizes.size();i++) {

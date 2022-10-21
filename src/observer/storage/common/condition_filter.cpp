@@ -185,7 +185,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
 }
 
 
-bool DefaultConditionFilter::string_filter(const char *rec) const {
+bool DefaultConditionFilter::string_filter(const char *rec, size_t upper_offset) const {
   //const char *record = rec.c_str();
   
   char *left_value = nullptr;
@@ -308,9 +308,23 @@ bool CompositeConditionFilter::filter(const Record &rec) const
   return true;
 }
 
-bool CompositeConditionFilter::string_filter(const char *rec) const {
+bool CompositeConditionFilter::string_filter(const char *rec, size_t upper_offset) const {
   for (int i = 0; i < filter_num_; i++) {
-    if (!filters_[i]->string_filter(rec)) {
+   DefaultConditionFilter *tmp = ((DefaultConditionFilter *)filters_[i]);
+   size_t left_offset = 0;
+   size_t right_offset = 0;
+   if (tmp->left().is_attr) {
+      left_offset = tmp->left().attr_offset;
+      std::cout << "left offset :" << left_offset << std::endl;
+   }
+   if (tmp->right().is_attr) {
+      right_offset = tmp->right().attr_offset;
+      std::cout << "right offset :" << right_offset << std::endl;
+   }
+   if (left_offset >= upper_offset || right_offset >= upper_offset) {
+      continue;
+   }
+    if (!filters_[i]->string_filter(rec, upper_offset)) {
       return false;
     }
   }
