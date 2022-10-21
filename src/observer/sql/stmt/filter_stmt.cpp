@@ -37,6 +37,10 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
 
   FilterStmt *tmp_stmt = new FilterStmt();
   for (int i = 0; i < condition_num; i++) {
+    // modified, not sure
+    if (!conditions[i].left_is_attr && !conditions[i].right_is_attr) {
+      continue;
+    }
     FilterUnit *filter_unit = nullptr;
     rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
