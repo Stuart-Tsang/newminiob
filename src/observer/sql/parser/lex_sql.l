@@ -44,6 +44,7 @@ QUOTE            [\'\"]
 "*"                   					         RETURN_TOKEN(STAR);
 [Ee][Xx][Ii][Tt]						             RETURN_TOKEN(EXIT);
 [Hh][Ee][Ll][Pp]                    	   RETURN_TOKEN(HELP);
+[Aa][Ss][Cc]							 RETURN_TOKEN(ASC);
 [Dd][Ee][Ss][Cc]                         RETURN_TOKEN(DESC);
 [Cc][Rr][Ee][Aa][Tt][Ee]                 RETURN_TOKEN(CREATE);
 [Dd][Rr][Oo][Pp]                    	   RETURN_TOKEN(DROP);
@@ -74,6 +75,7 @@ QUOTE            [\'\"]
 [Dd][Aa][Tt][Aa]	                       RETURN_TOKEN(DATA);
 [Ii][Nn][Ff][Ii][Ll][Ee]                 RETURN_TOKEN(INFILE);
 
+[Oo][Rr][Dd][Ee][Rr][\ ][Bb][Yy]						RETURN_TOKEN(ORDER_BY);
 [Ii][Nn][Nn][Ee][Rr]                                RETURN_TOKEN(INNER);
 [Jj][Oo][Ii][Nn]                                    RETURN_TOKEN(JOIN);
 

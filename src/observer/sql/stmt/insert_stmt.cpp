@@ -19,16 +19,16 @@ See the Mulan PSL v2 for more details. */
 #include "util/date.h"
 #include "sql/parser/parse_defs.h"
 
-InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
-  : table_ (table), values_(values), value_amount_(value_amount)
+InsertStmt::InsertStmt(Table *table, const Inserts &inserts)
+  : table_ (table), inserts_(inserts)
 {}
 
 RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name;
-  if (nullptr == db || nullptr == table_name || inserts.value_num <= 0) {
-    LOG_WARN("invalid argument. db=%p, table_name=%p, value_num=%d", 
-             db, table_name, inserts.value_num);
+  if (nullptr == db || nullptr == table_name ) {
+    LOG_WARN("invalid argument. db=%p, table_name=%p", 
+             db, table_name);
     return RC::INVALID_ARGUMENT;
   }
 
@@ -40,8 +40,15 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value *values = inserts.values;
-  const int value_num = inserts.value_num;
+  //const Value *values = inserts.values;
+  //const int value_num = inserts.value_num;
+  int count = inserts.insert_num;
+  for(int i=0; i<count; i++) {
+  const Value *values = inserts.insertValue[i].values;
+  const int value_num = inserts.insertValue[i].value_num;
+  if(value_num <= 0) {
+    return RC::INVALID_ARGUMENT;
+  }
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num() - table_meta.sys_field_num();
   if (field_num != value_num) {
@@ -75,8 +82,9 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt)
       }
     }
   }
-
+  }
   // everything alright
-  stmt = new InsertStmt(table, values, value_num);
+  //stmt = new InsertStmt(table, values, value_num);
+  stmt = new InsertStmt(table, inserts);
   return RC::SUCCESS;
 }

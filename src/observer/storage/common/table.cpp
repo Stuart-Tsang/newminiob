@@ -308,6 +308,35 @@ RC Table::insert_record(Trx *trx, int value_num, const Value *values)
   return rc;
 }
 
+RC Table::insert_record(Trx *trx, int insert_num, const InsertValue *insert_values)
+{
+  if (insert_num <= 0 || nullptr == insert_values) {
+    LOG_ERROR("Invalid argument.  value num=%d, values=%p",  insert_num, insert_values); 
+    return RC::INVALID_ARGUMENT;
+  }
+  RC rc = RC::SUCCESS;
+  for  (int i = 0; i < insert_num; i++) {
+    int value_num = insert_values[i].value_num;
+    const Value* values = insert_values[i].values;
+    char *record_data;
+    rc = make_record(value_num, values, record_data);
+    if(rc != RC::SUCCESS) {
+      // TODO 回滚
+      LOG_ERROR("Failed to create a record. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
+    Record record;
+    record.set_data(record_data);
+    // record.valid = true;
+    rc = insert_record(trx, &record);
+    if(rc != RC::SUCCESS) {
+      return rc;
+    }
+    delete[] record_data;
+  }
+  return rc;
+}
+
 const char *Table::name() const
 {
   return table_meta_.name();

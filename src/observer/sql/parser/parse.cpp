@@ -154,6 +154,13 @@ void selects_append_conditions(Selects *selects, Condition conditions[], size_t 
   selects->condition_num = condition_num;
 }
 
+void selects_append_order(Selects *selects, char *field_name, char *ad , char *relation_name )
+{
+  std::string ss;
+  ss = std::string(field_name) + "-" + ad + "-" + relation_name;
+  selects->order_condition[selects->order_num++] = strdup(ss.c_str());
+}
+
 void selects_destroy(Selects *selects)
 {
   for (size_t i = 0; i < selects->attr_num; i++) {
@@ -171,27 +178,37 @@ void selects_destroy(Selects *selects)
     condition_destroy(&selects->conditions[i]);
   }
   selects->condition_num = 0;
-}
 
-void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num)
-{
-  assert(value_num <= sizeof(inserts->values) / sizeof(inserts->values[0]));
-
-  inserts->relation_name = strdup(relation_name);
-  for (size_t i = 0; i < value_num; i++) {
-    inserts->values[i] = values[i];
+  for (size_t i = 0; i < selects->order_num; i++) {
+    free(selects->order_condition[i]);
   }
-  inserts->value_num = value_num;
+  selects->order_num = 0;
 }
+
+void inserts_init(Inserts *inserts, Value values[], size_t value_num)
+{
+  assert(value_num <= sizeof(inserts->insertValue[0].values) / sizeof(inserts->insertValue[0].values[0]));
+
+  //inserts->relation_name = strdup(relation_name);
+  for (size_t i = 0; i < value_num; i++) {
+    inserts->insertValue[inserts->insert_num].values[i] = values[i];
+  }
+  //inserts->value_num = value_num;
+  inserts->insertValue[inserts->insert_num].value_num = value_num;
+  inserts->insert_num++;
+}
+
 void inserts_destroy(Inserts *inserts)
 {
   free(inserts->relation_name);
   inserts->relation_name = nullptr;
 
-  for (size_t i = 0; i < inserts->value_num; i++) {
-    value_destroy(&inserts->values[i]);
+  for (int i = 0; i < inserts->insert_num; i++) {
+    for(int j = 0; j < inserts->insertValue[i].value_num; j++){
+      value_destroy(&inserts->insertValue[i].values[j]);
+    }
+    inserts->insertValue[i].value_num = 0;
   }
-  inserts->value_num = 0;
 }
 
 void deletes_init_relation(Deletes *deletes, const char *relation_name)

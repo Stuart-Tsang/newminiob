@@ -43,7 +43,7 @@ void yyerror(yyscan_t scanner, const char *str)
   context->from_length = 0;
   context->select_length = 0;
   context->value_length = 0;
-  context->ssql->sstr.insertion.value_num = 0;
+  //context->ssql->sstr.insertion.value_num = 0;
   printf("parse sql failed. error=%s", str);
 }
 
@@ -68,6 +68,7 @@ ParserContext *get_context(yyscan_t scanner)
         TABLES
         INDEX
         SELECT
+		ASC
         DESC
         SHOW
         SYNC
@@ -97,6 +98,7 @@ ParserContext *get_context(yyscan_t scanner)
         LOAD
         DATA
         INFILE
+		ORDER_BY
         EQ
         LT
         GT
@@ -287,21 +289,34 @@ ID_get:
 
 	
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE SEMICOLON 
+INSERT INTO ID VALUES myValue myValue_list SEMICOLON  
 		{
 			// CONTEXT->values[CONTEXT->value_length++] = *$6;
 
 			CONTEXT->ssql->flag=SCF_INSERT;//"insert";
+			//先提前记录table名字
+			CONTEXT->ssql->sstr.insertion.relation_name = strdup($3);			
 			// CONTEXT->ssql->sstr.insertion.relation_name = $3;
 			// CONTEXT->ssql->sstr.insertion.value_num = CONTEXT->value_length;
 			// for(i = 0; i < CONTEXT->value_length; i++){
 			// 	CONTEXT->ssql->sstr.insertion.values[i] = CONTEXT->values[i];
       // }
-			inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
+			//inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
 
       //临时变量清零
-      CONTEXT->value_length=0;
+      //CONTEXT->value_length=0;
     }
+
+myValue_list:
+	/* empty */
+	| COMMA myValue myValue_list {};
+
+myValue:
+	LBRACE value value_list RBRACE {
+		inserts_init(&CONTEXT->ssql->sstr.insertion, CONTEXT->values, CONTEXT->value_length);
+		CONTEXT->value_length=0;
+	}
+
 
 value_list:
     /* empty */
@@ -343,7 +358,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID inner_join_list rel_list where SEMICOLON
+    SELECT select_attr FROM ID inner_join_list rel_list where order SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
@@ -417,6 +432,39 @@ on:
 	// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
       }
     ;
+
+order:
+	/* empty */
+	| ORDER_BY order_condition order_condition_list {
+
+	};
+
+order_condition_list:
+	/* empty */
+	| COMMA order_condition order_condition_list {
+	
+	};
+
+order_condition:
+	ID {
+		selects_append_order(&CONTEXT->ssql->sstr.selection, $1, "asc", "nullptr");
+	};
+	| ID ASC {
+		selects_append_order(&CONTEXT->ssql->sstr.selection, $1, "asc", "nullptr");
+	};
+	| ID DESC {
+		selects_append_order(&CONTEXT->ssql->sstr.selection, $1, "desc", "nullptr");
+	};
+	| ID DOT ID {
+		selects_append_order(&CONTEXT->ssql->sstr.selection, $3, "asc", $1);
+	};
+	| ID DOT ID ASC {
+		selects_append_order(&CONTEXT->ssql->sstr.selection, $3, "asc", $1);
+	};
+	| ID DOT ID DESC {
+		selects_append_order(&CONTEXT->ssql->sstr.selection, $3, "desc", $1);
+	};
+
 
 attr_list:
     /* empty */

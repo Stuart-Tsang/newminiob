@@ -87,13 +87,27 @@ typedef struct {
   char *relations[MAX_NUM];       // relations in From clause
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
+  char *order_condition[MAX_NUM];       // record order condition in form "table-field-asc"
+  size_t order_num;
 } Selects;
 
 // struct of insert
+/*typedef struct {
+  char *relation_name;    // Relation to insert into
+  size_t value_num;       // Length of values
+  Value values[MAX_NUM];  // values to insert
+} Inserts;*/
+
 typedef struct {
   char *relation_name;    // Relation to insert into
   size_t value_num;       // Length of values
   Value values[MAX_NUM];  // values to insert
+} InsertValue;
+
+typedef struct {
+  char *relation_name;    // Relation to insert into
+  InsertValue insertValue[MAX_NUM];
+  int insert_num ;
 } Inserts;
 
 // struct of delete
@@ -219,9 +233,11 @@ void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr);
 void selects_append_relation(Selects *selects, const char *relation_name);
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num);
+void selects_append_order(Selects *selects, char *field_name, char *ad , char *relation_name );
 void selects_destroy(Selects *selects);
 
-void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num);
+//void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num);
+void inserts_init(Inserts *inserts,  Value values[], size_t value_num);
 void inserts_destroy(Inserts *inserts);
 
 void deletes_init_relation(Deletes *deletes, const char *relation_name);

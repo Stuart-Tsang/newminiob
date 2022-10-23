@@ -1134,7 +1134,8 @@ RC ExecuteStage::do_insert(SQLStageEvent *sql_event)
   InsertStmt *insert_stmt = (InsertStmt *)stmt;
 
   Table *table = insert_stmt->table();
-  RC rc = table->insert_record(nullptr, insert_stmt->value_amount(), insert_stmt->values());
+ //RC rc = table->insert_record(nullptr, insert_stmt->value_amount(), insert_stmt->values());
+  RC rc = table->insert_record(nullptr, insert_stmt->inserts().insert_num, insert_stmt->inserts().insertValue);
   if (rc == RC::SUCCESS) {
     session_event->set_response("SUCCESS\n");
   } else {
