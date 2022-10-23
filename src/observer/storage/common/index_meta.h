@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include "rc.h"
+#include <set>
 
 class TableMeta;
 class FieldMeta;
@@ -29,7 +30,7 @@ class IndexMeta {
 public:
   IndexMeta() = default;
 
-  RC init(const char *name, const FieldMeta &field);
+  RC init(const char *name, const FieldMeta &field, int isUnique);
 
 public:
   const char *name() const;
@@ -40,6 +41,10 @@ public:
 public:
   void to_json(Json::Value &json_value) const;
   static RC from_json(const TableMeta &table, const Json::Value &json_value, IndexMeta &index);
+
+//for unique keyword
+public:
+  int isUnique_;        // 1 is unique
 
 protected:
   std::string name_;   // index's name

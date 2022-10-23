@@ -63,7 +63,7 @@ public:
   RC scan_record(Trx *trx, ConditionFilter *filter, int limit, void *context,
       void (*record_reader)(const char *data, void *context));
 
-  RC create_index(Trx *trx, const char *index_name, const char *attribute_name);
+  RC create_index(Trx *trx, const char *index_name, const char *attribute_name, int isUnique);
 
   RC get_record_scanner(RecordFileScanner &scanner);
 
@@ -84,10 +84,13 @@ public:
   RC commit_delete(Trx *trx, const RID &rid);
   RC rollback_insert(Trx *trx, const RID &rid);
   RC rollback_delete(Trx *trx, const RID &rid);
+  DiskBufferPool  *getDiskBufferPool() {return data_buffer_pool_;}
 
 private:
   RC scan_record(
       Trx *trx, ConditionFilter *filter, int limit, void *context, RC (*record_reader)(Record *record, void *context));
+  RC my_unique_scan_record(
+      Trx *trx, ConditionFilter *filter, int limit, void *context, int field_offset, RC (*record_reader)(Record *record, void *context));
   RC scan_record_by_index(Trx *trx, IndexScanner *scanner, ConditionFilter *filter, int limit, void *context,
       RC (*record_reader)(Record *record, void *context));
   IndexScanner *find_index_for_scan(const ConditionFilter *filter);

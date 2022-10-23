@@ -97,10 +97,11 @@ public:
   RID & rid() { return rid_; }
   const RID &rid() const { return rid_; };
 
+  char *                         data_ = nullptr;
 private:
   RID                            rid_;
 
   // the data buffer
   // record will not release the memory
-  char *                         data_ = nullptr;
+  //char *                         data_ = nullptr;
 };

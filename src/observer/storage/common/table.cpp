@@ -506,6 +506,66 @@ RC Table::scan_record(Trx *trx, ConditionFilter *filter, int limit, void *contex
   return rc;
 }
 
+RC Table::my_unique_scan_record(Trx *trx, ConditionFilter *filter, int limit, void *context, int field_offset,
+                      RC (*record_reader)(Record *record, void *context))
+{
+  if (nullptr == record_reader) {
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if (0 == limit) {
+    return RC::SUCCESS;
+  }
+
+  if (limit < 0) {
+    limit = INT_MAX;
+  }
+
+  IndexScanner *index_scanner = find_index_for_scan(filter);
+  if (index_scanner != nullptr) {
+    return scan_record_by_index(trx, index_scanner, filter, limit, context, record_reader);
+  }
+
+  RC rc = RC::SUCCESS;
+  RecordFileScanner scanner;
+  rc = scanner.open_scan(*data_buffer_pool_, filter);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("failed to open scanner. rc=%d:%s", rc, strrc(rc));
+    return rc;
+  }
+
+  int record_count = 0;
+  Record record;
+  std::set<int> set_;
+  while (scanner.has_next()) {
+    rc = scanner.next(record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to fetch next record. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
+    if (trx == nullptr || trx->is_visible(this, &record)) {
+      int rec = *(int*)(record.data_+field_offset);
+      if (set_.count(rec)>0) {
+        return RC::NOT_UNIQUE_ERR;
+      } 
+      else {
+        set_.insert(rec);
+      }
+      rc = record_reader(&record, context);
+      if (rc != RC::SUCCESS) {
+        break;
+      }
+      record_count++;
+    }
+  }
+  scanner.close_scan();
+  //if(rc == RC::SUCCESS) {
+  //  printf("test %d\n",set_.size());
+  //}
+  return rc;
+}
+
+
 RC Table::scan_record_by_index(Trx *trx, IndexScanner *scanner, ConditionFilter *filter,
                                int limit, void *context,
                                RC (*record_reader)(Record *, void *))
@@ -556,6 +616,8 @@ public:
     return index_->insert_entry(record->data(), &record->rid());
   }
 
+  Index *getIndex() {return index_;}
+
 private:
   Index *index_;
 };
@@ -566,7 +628,7 @@ static RC insert_index_record_reader_adapter(Record *record, void *context)
   return inserter.insert_index(record);
 }
 
-RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_name)
+RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_name, int isUnique)
 {
   if (common::is_blank(index_name) || common::is_blank(attribute_name)) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
@@ -585,7 +647,7 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   }
 
   IndexMeta new_index_meta;
-  RC rc = new_index_meta.init(index_name, *field_meta);
+  RC rc = new_index_meta.init(index_name, *field_meta, isUnique);
   if (rc != RC::SUCCESS) {
     LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s",
              name(), index_name, attribute_name);
@@ -604,11 +666,26 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
 
   // 遍历当前的所有数据，插入这个索引
   IndexInserter index_inserter(index);
-  rc = scan_record(trx, nullptr, -1, &index_inserter, insert_index_record_reader_adapter);
+   if (isUnique == 1) {
+    int field_offset = index->getfield_meta().offset();
+    rc = my_unique_scan_record(trx, nullptr, -1, &index_inserter, field_offset, insert_index_record_reader_adapter);
+  }
+  else {
+    rc = scan_record(trx, nullptr, -1, &index_inserter, insert_index_record_reader_adapter);
+  }
+
   if (rc != RC::SUCCESS) {
     // rollback
     delete index;
     LOG_ERROR("Failed to insert index to all records. table=%s, rc=%d:%s", name(), rc, strrc(rc));
+    //删除新建的index文件
+    int re = remove(index_file.c_str());
+    if(re == 0) {
+      LOG_TRACE("Success to remove index %s", index_file.c_str());
+    }
+    else{
+      LOG_ERROR("Failed to remove index %s", index_file.c_str());
+    }    
     return rc;
   }
   indexes_.push_back(index);

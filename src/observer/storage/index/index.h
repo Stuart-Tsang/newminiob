@@ -43,6 +43,10 @@ public:
     return index_meta_;
   }
 
+  IndexMeta my_index_meta() {return index_meta_;}
+
+  FieldMeta getfield_meta() {return field_meta_;}
+
   virtual RC drop() = 0;
 
   virtual RC insert_entry(const char *record, const RID *rid) = 0;
