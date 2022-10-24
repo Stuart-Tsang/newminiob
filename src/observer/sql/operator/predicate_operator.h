@@ -80,8 +80,12 @@ private:
 };
 */
 void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,std::ostream &os);
-void DescartestRecursive(std::vector<std::vector<char *> >& originalList, int position,  char *line, 
+void DescartestRecursive(std::vector<std::vector<char *> >& originalList, std::vector<char *>& result, int position,  char *line, 
 CompositeConditionFilter &composite_condition_filter, std::vector<int>& multiple_table_record_sizes,
  std::ostream& os, std::vector<FieldMeta>& multi_field_table); 
 
-void getDescartes(std::vector< std::vector<char *> >& originalList, CompositeConditionFilter &composite_condition_filter,std::vector<int>& multiple_table_record_sizes, std::ostream& os, std::vector<FieldMeta>& multi_field_table);
+void getDescartes(std::vector< std::vector<char *> >& originalList, std::vector<char *>& result, CompositeConditionFilter &composite_condition_filter,std::vector<int>& multiple_table_record_sizes, std::ostream& os, std::vector<FieldMeta>& multi_field_table);
+
+void quick_sort(std::vector<char *>& tuples, int l, int r, std::vector<FieldMeta>& order_fieldmeta, std::vector<OrderType>& order_attr);
+
+int cmpTuple(char *t1, char *t2, std::vector<FieldMeta>& order_fieldmeta, std::vector<OrderType>& order_attr);

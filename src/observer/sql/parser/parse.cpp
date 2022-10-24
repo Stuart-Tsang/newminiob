@@ -156,9 +156,24 @@ void selects_append_conditions(Selects *selects, Condition conditions[], size_t 
 
 void selects_append_order(Selects *selects, char *field_name, char *ad , char *relation_name )
 {
-  std::string ss;
-  ss = std::string(field_name) + "-" + ad + "-" + relation_name;
-  selects->order_condition[selects->order_num++] = strdup(ss.c_str());
+  //selects->order_num = 0;
+
+  if (relation_name != nullptr) {
+    selects->order_condition[selects->order_num].relation_name = strdup(relation_name);
+  } else {
+    selects->order_condition[selects->order_num].relation_name = nullptr;
+  }
+  selects->order_condition[selects->order_num].attribute_name = strdup(field_name);
+  if ( ad != nullptr) {
+      if ( strcmp(ad,"asc") == 0 ) {
+        selects->order_condition[selects->order_num].order_type = OrderType::Order_ASC;
+      } else {
+        selects->order_condition[selects->order_num].order_type = OrderType::Order_DESC;
+      }
+  }
+
+  selects->order_num++;
+
 }
 
 void selects_destroy(Selects *selects)
@@ -180,7 +195,8 @@ void selects_destroy(Selects *selects)
   selects->condition_num = 0;
 
   for (size_t i = 0; i < selects->order_num; i++) {
-    free(selects->order_condition[i]);
+    free(selects->order_condition[i].attribute_name);
+    free(selects->order_condition[i].relation_name);
   }
   selects->order_num = 0;
 }

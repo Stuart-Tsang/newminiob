@@ -43,11 +43,13 @@ public:
   //int query_fields_size() const { return query_fields_.size();}
   const std::vector<int> &is_aggregation() const { return is_aggregation_; }
   const std::vector<AggrType> &aggr_types() const { return aggr_types_; }
+  const std::vector<OrderAttr> &order_attr_() const { return order_attr; }
 private:
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
   std::vector<int> is_aggregation_;
   std::vector<AggrType> aggr_types_;
+  std::vector<OrderAttr> order_attr;
 };
 

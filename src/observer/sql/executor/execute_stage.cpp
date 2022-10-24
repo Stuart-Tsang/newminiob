@@ -680,15 +680,71 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
    }
     make_multiple_tuple_header(tuple_header_list, multiple_table_project_cell);
     ss << tuple_header_list << std::endl;
-    std::vector<std::string> descartes;
+    std::vector<char *> descartes;
     for (int i = 0; i < vec.size(); i++) {
       if (vec[i].size() == 0) {
         session_event->set_response(ss.str());
         return rc;
       }
     }
-    getDescartes(vec, composite_condition_filter, multiple_table_record_sizes, ss, multiple_table_project_cell);
+    getDescartes(vec, descartes, composite_condition_filter, multiple_table_record_sizes, ss, multiple_table_project_cell);
     
+    //check order
+    std::vector<FieldMeta> order_fieldmeta;
+    std::vector<OrderType> order_type;
+    const std::vector<Table*> tablelist = select_stmt->tables();
+    /*
+    const std::vector<Table*> queue_table_list;
+    for (int table_num = tablelist.size()-1; table_num > 0; table_num--) {
+      //Table * tmp = tablelist[table_num];
+      queue_table_list.push_back(tablelist[table_num]->);
+    }
+    */
+    const std::vector<OrderAttr>& order_attr = select_stmt->order_attr_();
+    for (int i = 0; i < order_attr.size(); i++) {
+      char * current_attr_name = order_attr[i].attribute_name;
+      char * current_table_name = order_attr[i].relation_name;
+      order_type.push_back(order_attr[i].order_type);
+
+      for (int j = tablelist.size()-1; j >= 0; j--) {
+        if ( 0 == strcmp(current_table_name, tablelist[j]->name())) {
+          const std::vector<FieldMeta>& field_meta = tablelist[j]->table_meta().field_meta();
+          size_t multi_table_field_offset = 0;
+          for (int table_count = 0; table_count < table_list.size()-1-j; table_count++) {
+            multi_table_field_offset += multiple_table_record_sizes[table_count];
+          }
+          for (int k = 0; k < field_meta.size(); k++) {
+            if (strcmp(current_attr_name, field_meta[k].name()) == 0) {
+              FieldMeta tmp(field_meta[k]);
+              tmp.set_offset(multi_table_field_offset + field_meta[k].offset());
+              order_fieldmeta.push_back(tmp);
+            }
+          }
+        }
+      }
+    }
+  
+    if (order_fieldmeta.size() != 0 && order_type.size() != 0) {
+      quick_sort(descartes, 0, descartes.size()-1, order_fieldmeta, order_type);
+    }
+
+
+    //output result
+    for (int i = 0; i < descartes.size(); i++) {
+      bool first = true;
+        for (int j=0; j < multiple_table_project_cell.size(); j++) {
+          if (!first) {
+            ss << " | ";
+            std::cout << " | ";
+          }else {
+            first = false;
+          }
+          FieldMeta tmp = multiple_table_project_cell[j];
+          multi_to_string(descartes[i],tmp.offset(),tmp.len(), tmp.type(), ss);
+        }
+        ss << std::endl;
+        std::cout << std::endl;
+    }
    
     session_event->set_response(ss.str());
     return rc;
@@ -986,12 +1042,14 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
 
   DEFER([&] () {delete scan_oper;});
 
+  std::vector<FieldMeta> project_field;
   PredicateOperator pred_oper(select_stmt->filter_stmt());
   pred_oper.add_child(scan_oper);
   ProjectOperator project_oper;
   project_oper.add_child(&pred_oper);
   for (const Field &field : select_stmt->query_fields()) {  //the query fields in `select` statement
     project_oper.add_projection(field.table(), field.meta());
+    project_field.push_back(*field.meta());
   }
   rc = project_oper.open();
   if (rc != RC::SUCCESS) {
@@ -1000,7 +1058,10 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   }
 
   std::stringstream ss;
+  std::vector<char *> tuple_set_;
   print_tuple_header(ss, project_oper);
+  size_t trx_len = 4;
+  size_t record_size = select_stmt->tables()[0]->table_meta().record_size();
   while ((rc = project_oper.next()) == RC::SUCCESS) {
     // get current record
     // write to response
@@ -1011,8 +1072,12 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
       break;
     }
 
-    tuple_to_string(ss, *tuple);
-    ss << std::endl;
+    char *record = new char[record_size];
+    make_full_record(tuple, record, record_size, trx_len);
+    tuple_set_.push_back(record);
+ 
+    //tuple_to_string(ss, *tuple);
+    //ss << std::endl;
   }
 
   if (rc != RC::RECORD_EOF) {
@@ -1021,6 +1086,47 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   } else {
     rc = project_oper.close();
   }
+
+  std::vector<FieldMeta> order_fieldmeta;
+  std::vector<OrderType> order_type;
+  const std::vector<OrderAttr>& order_attr = select_stmt->order_attr_();
+  const std::vector<FieldMeta>& field_meta = select_stmt->tables()[0]->table_meta().field_meta();
+  for (int i = 0; i < order_attr.size(); i++) {
+    char * attr_name = order_attr[i].attribute_name;
+    order_type.push_back(order_attr[i].order_type);
+
+    for(int j = 0; j < field_meta.size(); j++) {
+      if (strcmp(attr_name, field_meta[j].name()) == 0) {
+        FieldMeta tmp(field_meta[j]);
+        tmp.set_offset(field_meta[j].offset()-4);
+        order_fieldmeta.push_back(tmp);
+      }
+    }
+  }
+
+  
+  if (order_fieldmeta.size() != 0 && order_type.size() != 0) {
+      quick_sort(tuple_set_, 0, tuple_set_.size()-1, order_fieldmeta, order_type);
+  }
+  
+  
+  
+  for (int i = 0; i < tuple_set_.size(); i++) {
+    bool first = true;
+    for (int j = 0; j < project_field.size(); j++) {
+      if (!first) {
+        ss << " | ";
+        //std::cout << " | ";
+      } else {
+        first = false;
+      }
+      FieldMeta &tmp = project_field[j];
+      multi_to_string(tuple_set_[i], tmp.offset()-trx_len, tmp.len(), tmp.type(), ss);
+    }
+    ss << std::endl;
+  }
+
+
   session_event->set_response(ss.str());
   return rc;
 }

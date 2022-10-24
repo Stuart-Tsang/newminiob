@@ -79,6 +79,17 @@ typedef struct _Condition {
   Value right_value;   // right-hand side value if right_is_attr = FALSE
 } Condition;
 
+typedef enum {
+  Order_ASC,
+  Order_DESC
+}OrderType;
+
+typedef struct {
+  char *relation_name;   // relation name (may be NULL) 表名
+  char *attribute_name;  // attribute name              属性名
+  OrderType order_type;  // 0 if asc, 1 if desc
+}OrderAttr;
+
 // struct of select
 typedef struct {
   size_t attr_num;                // Length of attrs in Select clause
@@ -87,7 +98,7 @@ typedef struct {
   char *relations[MAX_NUM];       // relations in From clause
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
-  char *order_condition[MAX_NUM];       // record order condition in form "table-field-asc"
+  OrderAttr order_condition[MAX_NUM];       // record order condition in form "table-field-asc"
   size_t order_num;
 } Selects;
 

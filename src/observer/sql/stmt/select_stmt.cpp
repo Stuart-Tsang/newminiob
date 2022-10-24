@@ -64,31 +64,11 @@ RC SelectStmt::create(Db *db, const Selects &select_sql, Stmt *&stmt)
   }
   
   //check order condition
+  std::vector<OrderAttr> order_attr;
   if (select_sql.order_num > 0) {
     size_t num = select_sql.order_num;
     for(int i=0; i < num ; i++) {
-      char table_name[30] = "";
-      char field_name[30] = "";
-      char ad[30] = "";
-      //表名和属性名只允许出现字母、数字和下划线
-      int r = sscanf(select_sql.order_condition[i], "%29[0-9A-Za-z_]-%[A-Za-z]-%29[0-9A-Za-z_]", field_name, ad, table_name);
-      if( r < 3 )
-        return RC::ORDER_CONDITION_ERR;
-      if(strcmp(table_name, "nullptr") == 0) {
-        if (tables.size() > 1)
-          return RC::ORDER_CONDITION_ERR;
-        if(tables[0]->table_meta().field(field_name) == nullptr)
-          return RC::ORDER_CONDITION_ERR;
-      }
-      else{
-        auto myiter = table_map.find(table_name);
-        if (myiter == table_map.end()) {
-          return RC::ORDER_CONDITION_ERR;
-        }
-        Table *table = myiter->second;
-        if(table->table_meta().field(field_name) == nullptr)
-          return RC::ORDER_CONDITION_ERR;
-      }
+      order_attr.push_back(select_sql.order_condition[i]);
     }
   }
 
@@ -183,6 +163,7 @@ RC SelectStmt::create(Db *db, const Selects &select_sql, Stmt *&stmt)
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->aggr_types_.swap(aggr_types);
   select_stmt->is_aggregation_.swap(is_aggregation);
+  select_stmt->order_attr.swap(order_attr);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

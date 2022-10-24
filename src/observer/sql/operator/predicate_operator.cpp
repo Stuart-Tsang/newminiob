@@ -138,11 +138,11 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
   switch (attr_type_) {
   case INTS: {
     os << *(int *)(data + offset);
-    std::cout << *(int *)(data + offset);
+    //std::cout << *(int *)(data + offset);
   } break;
   case FLOATS: {
     os << *(float *)(data + offset);
-    std::cout << *(float *)(data + offset);
+    //std::cout << *(float *)(data + offset);
   } break;
   case CHARS: {
     char * data_ = data + offset;
@@ -151,9 +151,9 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
         break;
       }
       os << data_[i];
-      std::cout << data_[i];
+      //std::cout << data_[i];
     }
-    std::cout << '\0';
+    //std::cout << '\0';
   } break;
   default: {
     LOG_WARN("unsupported attr type: %d", attr_type_);
@@ -161,7 +161,7 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
   }
 }
 
-void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int position, 
+void DescartestRecursive(std::vector<std::vector<char*> >& originalList, std::vector<char *>& result, int position, 
     char * line, CompositeConditionFilter &composite_condition_filter, std::vector<int>& multiple_table_record_sizes, 
       std::ostream& os, std::vector<FieldMeta>& multi_field_table) {
   // traverse the number `position` table
@@ -210,6 +210,17 @@ void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int pos
 
     if (composite_condition_filter.string_filter(line, upper_offset)) {
       if (position == originalList.size()-1) {
+        //modified
+          int record_size = 0;
+          for (int i=0; i < multiple_table_record_sizes.size();i++) {
+            record_size += multiple_table_record_sizes[i];
+          }
+        char * filter_record = new char [record_size];
+        memcpy(filter_record, line, record_size);
+        result.push_back(filter_record);
+        //filter_record = nullptr;
+        
+        /*
         bool first = true;
         for (int j=0; j < multi_field_table.size(); j++) {
           if (!first) {
@@ -222,9 +233,9 @@ void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int pos
           multi_to_string(line,tmp.offset(),tmp.len(), tmp.type(), os);
         }
         os << std::endl;
-        std::cout << std::endl;
+        std::cout << std::endl;*/
       } else {
-        DescartestRecursive(originalList, position+1, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
+        DescartestRecursive(originalList, result, position+1, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
       }
 
     } 
@@ -237,13 +248,76 @@ void DescartestRecursive(std::vector<std::vector<char*> >& originalList, int pos
 }
 
 //TupleSet getDescartes(std::vector<TupleSet>& list);
- void getDescartes(std::vector< std::vector<char *> >& originalList, CompositeConditionFilter &composite_condition_filter, std::vector<int>& multiple_table_record_sizes, std::ostream& os, std::vector<FieldMeta>& multi_field_table ) {
+ void getDescartes(std::vector< std::vector<char *> >& originalList, std::vector<char *>& result, CompositeConditionFilter &composite_condition_filter, std::vector<int>& multiple_table_record_sizes, std::ostream& os, std::vector<FieldMeta>& multi_field_table ) {
   //TupleSet returnList;
   int record_size = 0;
   for (int i=0; i < multiple_table_record_sizes.size();i++) {
     record_size += multiple_table_record_sizes[i];
   }
   char * line = new char[record_size];
-  DescartestRecursive(originalList, 0, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
+  DescartestRecursive(originalList, result, 0, line, composite_condition_filter, multiple_table_record_sizes, os, multi_field_table);
   
+}
+
+void quick_sort(std::vector<char *>& tuples, int l, int r, std::vector<FieldMeta>& order_fieldmeta, std::vector<OrderType>& order_attr){
+
+  if (l >= r) return;
+  int i = l-1; int j = r+1;
+  char *x = tuples[(l+r) >> 1];
+  while (i < j) {
+    do i++; while (cmpTuple(tuples[i], x, order_fieldmeta, order_attr) < 0);
+    do j--; while (cmpTuple(tuples[j], x, order_fieldmeta, order_attr) > 0);
+    if (i < j) std::swap(tuples[i], tuples[j]);
+  }
+  quick_sort(tuples, l, j, order_fieldmeta, order_attr);
+  quick_sort(tuples, j+1, r, order_fieldmeta, order_attr);
+}
+
+int cmpTuple(char *t1, char *t2, std::vector<FieldMeta>& order_fieldmeta, std::vector<OrderType>& order_attr){
+  for (int i = 0; i < order_fieldmeta.size(); i++) {
+    int order_field_offset = order_fieldmeta[i].offset();
+    AttrType order_field_type = order_fieldmeta[i].type();
+    OrderType flag = order_attr[i];
+    //*(int *)(t1+order_field_offset)
+    int res = 0;
+    switch (order_field_type) {
+      case CHARS :{ 
+        res = strcmp ((char*)(t1+order_field_offset), (char*)(t2+order_field_offset));
+      }break;
+
+      case FLOATS: {
+        float v1 = *(float*)(t1+order_field_offset),v2 = *(float*)(t2+order_field_offset);
+        if(v1-v2 > 0)
+          res = 1;
+        else if(v1-v2 <0)
+          res = -1;
+        else 
+          res = 0;
+      }break;
+
+      case INTS:{
+        int v1 = *(int*)(t1+order_field_offset),v2 = *(int*)(t2+order_field_offset);
+        res = v1-v2;
+      }break;
+
+      case DATES:{
+        int v1 = *(int*)(t1+order_field_offset),v2 = *(int*)(t2+order_field_offset);
+        res = v1-v2;
+      }break;
+      default: {
+        LOG_WARN("AttrType %d not support!", order_field_type);
+        return 0;
+      }
+    }
+
+    
+    if(res != 0) {
+      if(flag == OrderType::Order_ASC)
+        return res;
+      else
+        return -res;
+    }
+      
+  }
+  return 0;
 }
