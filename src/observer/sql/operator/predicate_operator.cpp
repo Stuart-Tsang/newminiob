@@ -155,6 +155,13 @@ void multi_to_string(char* data, int offset, int length_, AttrType attr_type_,st
     }
     //std::cout << '\0';
   } break;
+
+  case DATES: {
+    int value = *(int*)(data + offset);
+    char buf[16] = {0};
+    snprintf(buf,sizeof(buf), "%04d-%02d-%02d", value/10000, (value%10000)/100, value%100); // 注意这里月份和天数，不足两位时需要填充0
+    os << buf;
+  }break;
   default: {
     LOG_WARN("unsupported attr type: %d", attr_type_);
   } break;
