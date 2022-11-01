@@ -1136,7 +1136,7 @@ def __init_test_suite_with_source_code(options, eval_result):
       logging.info("decompress source code done")
   elif options.code_type == 'git':
     result = git_clone(options.git_repo, options.git_branch, options.git_repo_prefix, 
-                        options.git_user, options.git_token, proj_path, 10, eval_result)
+                        options.git_user, options.git_token, proj_path, 50, eval_result)
     if not result:
       return None
 
